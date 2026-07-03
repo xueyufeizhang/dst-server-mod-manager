@@ -303,6 +303,20 @@ def create_app() -> FastAPI:
         except LuaNotFoundError:
             lua_command = ""
 
+        # Compact server summary for the control panel.
+        cluster = read_cluster_info(cfg.dst.cluster_path, cfg.dst.shards)
+        cluster_summary = dict(cluster.cluster.summary)
+        system = gather_system_info([cfg.dst.cluster_path, cfg.dst.mods_path])
+        host_bits: list[str] = []
+        if system.memory:
+            host_bits.append(f"RAM {system.memory.percent}%")
+        for disk in system.disks[:1]:
+            host_bits.append(f"disk {disk.percent}%")
+        if system.load:
+            host_bits.append(f"load {system.load}")
+        if system.uptime:
+            host_bits.append(f"up {system.uptime}")
+
         return render(request, "index.html", {
             "active_page": "dashboard",
             "warnings": _config_warnings(cfg, overrides),
@@ -315,6 +329,9 @@ def create_app() -> FastAPI:
             "steamcmd_command": find_steamcmd(cfg.steamcmd.command),
             "last_command": app.state.last_command,
             "unified": _unified_field_shards()[0],
+            "cluster_name": cluster.cluster_name,
+            "cluster_summary": cluster_summary,
+            "host_line": " · ".join(host_bits),
         })
 
     # ------------------------------------------------------------------ #

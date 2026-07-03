@@ -231,6 +231,7 @@ details summary { cursor: pointer; color: #1a66b3; margin-top: 6px; }
 }
 
 /* Misc */
+.server-line { margin: 2px 0 8px; }
 .nowrap { white-space: nowrap; }
 .muted { color: #7a8899; }
 .small { font-size: 12px; }

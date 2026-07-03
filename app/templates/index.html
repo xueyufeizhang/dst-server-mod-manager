@@ -38,7 +38,16 @@
 
 {% from "_controls.html" import control_buttons, command_results %}
 <div class="panel">
-  <h2>Server control <span class="muted small">— <a href="/server">full server page: cluster settings, system status &amp; logs →</a></span></h2>
+  <h2>Server <span class="muted small">— <a href="/server">details →</a></span></h2>
+  {% if cluster_name %}
+  <p class="server-line">
+    <strong>{{ cluster_name }}</strong>
+    {% if cluster_summary.get("Game mode") %}<span class="muted"> · {{ cluster_summary.get("Game mode") }}</span>{% endif %}
+    {% if cluster_summary.get("Max players") %}<span class="muted"> · max {{ cluster_summary.get("Max players") }} players</span>{% endif %}
+    {% if cluster_summary.get("PvP") %}<span class="muted"> · PvP {{ 'on' if cluster_summary.get("PvP") == 'true' else 'off' }}</span>{% endif %}
+  </p>
+  {% endif %}
+  {% if host_line %}<p class="muted small server-line">{{ host_line }}</p>{% endif %}
   {{ control_buttons(cfg, "/") }}
   {{ command_results(last_command) }}
 </div>
