@@ -47,7 +47,8 @@ mod 参数，保存时自动备份并重新生成 `modoverrides.lua`。
 - Backups 页面可一键恢复任意备份（恢复前同样先备份当前文件）
 - Dashboard 显示路径 / shard 状态 / mod 数量 / 各 shard 启用数量 / 备份数量，
   以及可选的 Restart Server / Check status 按钮（显示 stdout/stderr）
-- 默认仅监听 `127.0.0.1` + HTTP Basic Auth，推荐 SSH 隧道访问
+- 默认仅监听 `127.0.0.1`，登录页 + 会话 cookie（7 天有效，改密码即全部失效），
+  导航栏右上角可登出；推荐 SSH 隧道访问
 
 ## 目录结构
 
@@ -338,7 +339,7 @@ DST 专用服务器只在启动时读取一次 `modoverrides.lua`，运行中修
 `modinfo.lua` 是一段会被执行的 Lua 代码。本面板在沙箱里执行它并提供了常见的DST 全局变量桩（`ChooseTranslationTable`、`locale`、`folder_name`），但个别 mod会引用更冷门的引擎函数或有语法错误，这时该 mod 会标记为 “parse failed”，错误原因显示在卡片上——仍然可以启用/禁用它，已有配置会原样保留。
 
 **为什么不要把面板直接暴露到公网？**
-这个面板可以改服务器文件、还可能配置了重启命令，而它只有一层 Basic Auth（明文HTTP）。公网暴露意味着密码可被嗅探、可被爆破。请保持 `host: 127.0.0.1`，用 SSH 隧道访问；确有远程需求时至少套一层带 HTTPS 的反向代理 + 强密码。
+这个面板可以改服务器文件、还可能配置了启停命令，而它只有一层登录认证且走明文HTTP。公网暴露意味着密码和会话 cookie 可被嗅探、登录可被爆破。请保持 `host: 127.0.0.1`，用 SSH 隧道访问；确有远程需求时至少套一层带 HTTPS 的反向代理 + 强密码。
 
 **权限不足（Permission denied）怎么办？**
 面板进程需要对 `Master/`、`Caves/` 目录（不只是文件，原子写入需要在目录里创建临时文件）和 `backup.directory` 有写权限。最简单的方案是用运行 DST 的同一个用户（通常是 `steam`）运行面板；或者
