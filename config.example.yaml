@@ -51,7 +51,10 @@ server:
   status_command: ""
 
 security:
-  # HTTP Basic Auth for every page. Change the password!
+  # Login credentials for the web panel (login page + session cookie;
+  # sessions last 7 days and are all invalidated when the password changes).
+  # Change the password! Set enable_basic_auth to false to disable login
+  # entirely (only sensible on a fully trusted machine).
   enable_basic_auth: true
   username: admin
   password: changeme

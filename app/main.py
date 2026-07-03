@@ -21,18 +21,24 @@ import sys
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable
-from urllib.parse import urlencode
+from typing import Any
+from urllib.parse import quote, urlencode
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from app.config import CONFIG_ENV_VAR, AppConfig, ConfigError, load_config
 from app.models import Mod, OverrideEntry, ShardOverrides
 from app.services import mod_scanner
+from app.services.auth import (
+    COOKIE_NAME,
+    SESSION_TTL_SECONDS,
+    derive_key,
+    make_token,
+    verify_token,
+)
 from app.services.backup import BackupError, BackupManager, BackupSession
 from app.services.cluster_info import read_cluster_info
 from app.services.download_jobs import DownloadManager
@@ -114,32 +120,6 @@ def _redirect_flash(url: str, message: str, level: str = "success") -> RedirectR
     return RedirectResponse(f"{url}{sep}{query}", status_code=303)
 
 
-def _build_auth_dependency(cfg: AppConfig) -> Callable[..., None]:
-    """HTTP Basic Auth guard applied to every page route."""
-    if not cfg.security.enable_basic_auth:
-        def no_auth() -> None:
-            return None
-
-        return no_auth
-
-    basic = HTTPBasic()
-    expected_user = cfg.security.username.encode("utf-8")
-    expected_pass = cfg.security.password.encode("utf-8")
-
-    def check(credentials: HTTPBasicCredentials = Depends(basic)) -> None:
-        # compare_digest keeps the comparison timing-safe.
-        user_ok = secrets.compare_digest(credentials.username.encode("utf-8"), expected_user)
-        pass_ok = secrets.compare_digest(credentials.password.encode("utf-8"), expected_pass)
-        if not (user_ok and pass_ok):
-            raise HTTPException(
-                status_code=401,
-                detail="invalid credentials",
-                headers={"WWW-Authenticate": 'Basic realm="dst-mod-manager"'},
-            )
-
-    return check
-
-
 def _load_all_overrides(cfg: AppConfig) -> dict[str, ShardOverrides]:
     return {
         shard: load_shard_overrides(
@@ -192,7 +172,6 @@ def create_app() -> FastAPI:
         docs_url=None,
         redoc_url=None,
         openapi_url=None,
-        dependencies=[Depends(_build_auth_dependency(cfg))],
     )
     # Only the most recent control command is kept for display.
     app.state.last_command: dict[str, Any] | None = None
@@ -229,7 +208,81 @@ def create_app() -> FastAPI:
         context.setdefault("cfg", cfg)
         context.setdefault("shards", cfg.dst.shards)
         context.setdefault("static_version", static_version)
+        context.setdefault("auth_enabled", cfg.security.enable_basic_auth)
         return templates.TemplateResponse(request, name, context)
+
+    # ------------------------------------------------------------------ #
+    # Login page + session cookie auth
+    # ------------------------------------------------------------------ #
+    auth_enabled = cfg.security.enable_basic_auth
+    session_key = derive_key(cfg.security.username, cfg.security.password)
+
+    def _session_ok(request: Request) -> bool:
+        return verify_token(session_key, request.cookies.get(COOKIE_NAME))
+
+    @app.middleware("http")
+    async def require_login(request: Request, call_next):  # type: ignore[no-untyped-def]
+        if not auth_enabled:
+            return await call_next(request)
+        path = request.url.path
+        if path == "/login" or path.startswith("/static/"):
+            return await call_next(request)
+        if _session_ok(request):
+            return await call_next(request)
+        # Background pollers (fetch with Accept: application/json) get a
+        # clean 401 instead of a redirect-to-HTML they can't parse.
+        if "application/json" in request.headers.get("accept", ""):
+            return JSONResponse({"detail": "not authenticated"}, status_code=401)
+        target = "/login"
+        if request.method == "GET" and path != "/":
+            target += "?next=" + quote(path, safe="/")
+        return RedirectResponse(target, status_code=303)
+
+    def _safe_next(raw: str) -> str:
+        # Internal paths only — no open redirects.
+        return raw if raw.startswith("/") and not raw.startswith("//") else "/"
+
+    @app.get("/login", response_class=HTMLResponse)
+    def login_page(request: Request, next: str = "/") -> Any:
+        if not auth_enabled or _session_ok(request):
+            return RedirectResponse("/", status_code=303)
+        return render(request, "login.html", {"error": "", "next": _safe_next(next)})
+
+    @app.post("/login")
+    async def login_submit(request: Request) -> Any:
+        form = await request.form()
+        username = str(form.get("username") or "")
+        password = str(form.get("password") or "")
+        next_url = _safe_next(str(form.get("next") or "/"))
+        user_ok = secrets.compare_digest(
+            username.encode("utf-8"), cfg.security.username.encode("utf-8")
+        )
+        pass_ok = secrets.compare_digest(
+            password.encode("utf-8"), cfg.security.password.encode("utf-8")
+        )
+        if not (user_ok and pass_ok):
+            logger.warning("failed login attempt (user %r)", username[:40])
+            return render(request, "login.html", {
+                "error": "Invalid username or password.",
+                "next": next_url,
+            })
+        response = RedirectResponse(next_url, status_code=303)
+        response.set_cookie(
+            COOKIE_NAME,
+            make_token(session_key),
+            max_age=SESSION_TTL_SECONDS,
+            httponly=True,
+            samesite="lax",
+            path="/",
+        )
+        logger.info("login ok")
+        return response
+
+    @app.post("/logout")
+    def logout() -> RedirectResponse:
+        response = RedirectResponse("/login", status_code=303)
+        response.delete_cookie(COOKIE_NAME, path="/")
+        return response
 
     def _unified_field_shards() -> tuple[bool, list[str]]:
         """(unified?, shards that get form fields/columns). In unified mode

@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Login · DST Mod Manager</title>
+  <link rel="stylesheet" href="/static/style.css?v={{ static_version }}">
+</head>
+<body class="login-body">
+<div class="login-card">
+  <h1>DST Mod Manager</h1>
+  <p class="muted">Sign in to manage your server.</p>
+  {% if error %}<div class="flash flash-error">{{ error }}</div>{% endif %}
+  <form method="post" action="/login">
+    <input type="hidden" name="next" value="{{ next }}">
+    <label for="login-username">Username</label>
+    <input id="login-username" type="text" name="username" autocomplete="username" autofocus required>
+    <label for="login-password">Password</label>
+    <input id="login-password" type="password" name="password" autocomplete="current-password" required>
+    <button type="submit" class="btn primary">Log in</button>
+  </form>
+</div>
+</body>
+</html>
