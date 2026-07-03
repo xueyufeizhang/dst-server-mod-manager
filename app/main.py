@@ -276,7 +276,15 @@ def create_app() -> FastAPI:
         except OSError:
             pass
 
-        cards = [build_mod_card(mod, cfg.dst.shards, overrides, setup_ids) for mod in mods]
+        # Unified mode: one set of controls, saved identically to every
+        # shard (the usual setup). Fields are bound to the primary shard.
+        unified = cfg.dst.unified_mod_config and len(cfg.dst.shards) > 1
+        field_shards = [cfg.dst.shards[0]] if unified else cfg.dst.shards
+
+        cards = [
+            build_mod_card(mod, cfg.dst.shards, overrides, setup_ids, field_shards)
+            for mod in mods
+        ]
         shard_errors = {s: o.error for s, o in overrides.items() if not o.ok}
         not_downloaded = build_pending_mods(
             cfg.dst.shards, overrides, {m.workshop_id for m in mods}, setup_ids
@@ -295,6 +303,8 @@ def create_app() -> FastAPI:
             "scan_error": scan_error,
             "shard_errors": shard_errors,
             "steamcmd_found": find_steamcmd(cfg.steamcmd.command) is not None,
+            "unified": unified,
+            "field_shards": field_shards,
         })
 
     @app.get("/mods/{workshop_id}", response_class=HTMLResponse)
@@ -329,6 +339,9 @@ def create_app() -> FastAPI:
         errors: list[str] = []
         session = backups.new_session("save")
         for shard in cfg.dst.shards:
+            # Unified mode: the form only carries fields for the primary
+            # shard; every shard is written from those same values.
+            field_shard = cfg.dst.shards[0] if cfg.dst.unified_mod_config else shard
             overrides_path = cfg.dst.overrides_path(shard)
             current = load_shard_overrides(shard, overrides_path, lua_command=cfg.lua_command)
             if not current.ok:
@@ -349,7 +362,7 @@ def create_app() -> FastAPI:
                     # overrides entry (listed only in the download list) and
                     # was left unticked gets none invented for it.
                     key = f"workshop-{workshop_id}"
-                    enabled = enabled_field_name(shard, workshop_id) in form
+                    enabled = enabled_field_name(field_shard, workshop_id) in form
                     old_pending = entries.get(key)
                     if old_pending is None and not enabled:
                         continue
@@ -361,9 +374,9 @@ def create_app() -> FastAPI:
                     )
                     continue
                 old = entries.get(mod.override_key, OverrideEntry())
-                enabled = enabled_field_name(shard, workshop_id) in form
+                enabled = enabled_field_name(field_shard, workshop_id) in form
                 if mod.parse_ok:
-                    config = build_config_from_form(form, shard, mod, old)
+                    config = build_config_from_form(form, field_shard, mod, old)
                 else:
                     # Unparsable modinfo: only the enabled flag is editable;
                     # keep whatever configuration already exists.
@@ -523,7 +536,11 @@ def create_app() -> FastAPI:
             return _redirect_flash(
                 "/mods", f"could not extract a workshop id from {raw!r}", "error"
             )
-        selected = [str(s) for s in form.getlist("add_shards") if str(s) in cfg.dst.shards]
+        selected = [str(s) for s in form.getlist("add_shards")]
+        if "__all__" in selected:  # unified mode: one checkbox = every shard
+            selected = list(cfg.dst.shards)
+        else:
+            selected = [s for s in selected if s in cfg.dst.shards]
         key = f"workshop-{workshop_id}"
 
         notes: list[str] = []

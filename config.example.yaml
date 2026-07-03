@@ -26,6 +26,12 @@ dst:
     - Master
     - Caves
 
+  # true (default): the Mods page shows ONE set of controls per mod and
+  # saving writes identical settings to every shard — the usual setup, since
+  # shards almost always run the same mods with the same options.
+  # false: separate per-shard columns, shards can be configured differently.
+  unified_mod_config: true
+
 server:
   # SECURITY: keep 127.0.0.1 and access the panel through an SSH tunnel.
   # Do NOT change this to 0.0.0.0 unless you know exactly what you are doing.

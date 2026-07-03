@@ -135,6 +135,9 @@ class ModCardVM:
     # False when the mod is missing from dedicated_server_mods_setup.lua
     # (True also when the setup file state is unknown — no badge then).
     in_setup: bool = True
+    # False when the shards currently hold different settings for this mod
+    # (only surfaced in unified mode, where saving re-syncs them).
+    synced: bool = True
 
 
 def _text_field_value(value: Any) -> str:
@@ -222,7 +225,12 @@ def build_mod_card(
     shards: list[str],
     overrides: Mapping[str, ShardOverrides],
     setup_ids: set[str] | None = None,
+    field_shards: list[str] | None = None,
 ) -> ModCardVM:
+    """Build the card VM. ``field_shards`` controls which shards get form
+    fields — in unified mode that is just the primary shard, while sync
+    detection and preserved-keys still consider every shard."""
+    field_shards = field_shards or shards
     card = ModCardVM(mod=mod)
     if setup_ids is not None:
         card.in_setup = mod.workshop_id in setup_ids
@@ -235,7 +243,16 @@ def build_mod_card(
     for shard in shards:
         entry = overrides[shard].entries.get(mod.override_key) if shard in overrides else None
         entries[shard] = entry
-        card.enabled[shard] = bool(entry and entry.enabled)
+    for shard in field_shards:
+        card.enabled[shard] = bool(entries[shard] and entries[shard].enabled)
+
+    # Do the shards currently agree on this mod?
+    primary = entries[shards[0]] or OverrideEntry()
+    card.synced = all(
+        (entries[s] or OverrideEntry()).enabled == primary.enabled
+        and (entries[s] or OverrideEntry()).configuration_options == primary.configuration_options
+        for s in shards
+    )
 
     known_names = {
         o.name for o in mod.configuration_options if o.name and not o.is_header
@@ -245,7 +262,7 @@ def build_mod_card(
     for index, option in enumerate(mod.configuration_options):
         row = OptionRowVM(option=option, is_header=option.is_header)
         if not option.is_header:
-            for shard in shards:
+            for shard in field_shards:
                 entry = entries[shard]
                 if entry is not None and option.name in entry.configuration_options:
                     current = entry.configuration_options[option.name]
@@ -290,6 +307,7 @@ class PendingModVM:
     option_counts: dict[str, int] = field(default_factory=dict)
     in_setup: bool = True   # listed in dedicated_server_mods_setup.lua?
     in_overrides: bool = False  # has an entry in any shard's modoverrides.lua?
+    synced: bool = True  # enabled flags agree across shards?
 
 
 def build_pending_mods(
@@ -335,6 +353,9 @@ def build_pending_mods(
                 get_vm(workshop_id)
         for vm in pending.values():
             vm.in_setup = vm.workshop_id in setup_ids
+
+    for vm in pending.values():
+        vm.synced = len({vm.enabled[s] for s in shards}) <= 1
 
     return sorted(pending.values(), key=lambda v: v.workshop_id)
 

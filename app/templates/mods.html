@@ -19,11 +19,17 @@
   <form method="post" action="/mods/add" class="add-form">
     <input type="text" name="workshop_input" required autocomplete="off"
            placeholder="Workshop ID (e.g. 378160973) or steamcommunity.com workshop URL">
+    {% if unified %}
+    <label class="toggle">
+      <input type="checkbox" name="add_shards" value="__all__" checked> enable
+    </label>
+    {% else %}
     {% for shard in shards %}
     <label class="toggle">
       <input type="checkbox" name="add_shards" value="{{ shard }}" checked> enable in {{ shard }}
     </label>
     {% endfor %}
+    {% endif %}
     <button type="submit" class="btn primary" name="action" value="add_download"
             {{ 'disabled' if not steamcmd_found else '' }}
             title="{{ 'Download immediately with steamcmd — may take a minute (longer on its first run)' if steamcmd_found else 'steamcmd not found on this machine' }}">
@@ -75,16 +81,20 @@
         <span class="badge warn"
               title="Missing from dedicated_server_mods_setup.lua — the server will NOT download this mod.">not in download list</span>
         {% endif %}
+        {% if unified and not p.synced %}
+        <span class="badge warn"
+              title="The shards currently have different enabled states for this mod — saving will apply the same state to all of them.">shards differ</span>
+        {% endif %}
         <a class="muted small" href="https://steamcommunity.com/sharedfiles/filedetails/?id={{ p.workshop_id }}"
            target="_blank" rel="noopener">workshop page ↗</a>
       </div>
       <div class="shard-toggles">
-        {% for shard in shards %}
+        {% for shard in field_shards %}
         <label class="toggle">
           <input type="checkbox" name="enabled__{{ shard }}__{{ p.workshop_id }}"
                  {{ 'checked' if p.enabled[shard] else '' }}
                  {{ 'disabled' if shard in shard_errors else '' }}>
-          {{ shard }}
+          {{ 'Enabled' if unified else shard }}
         </label>
         {% endfor %}
         {% if p.in_setup %}
@@ -156,14 +166,18 @@
         <span class="badge warn"
               title="Downloaded, but missing from dedicated_server_mods_setup.lua — the server will not update it and may remove it at its next restart.">not in download list</span>
         {% endif %}
+        {% if unified and not card.synced %}
+        <span class="badge warn"
+              title="The shards currently have different settings for this mod (values shown come from {{ shards[0] }}) — saving will write the same settings to all shards.">shards differ</span>
+        {% endif %}
       </div>
       <div class="shard-toggles">
-        {% for shard in shards %}
+        {% for shard in field_shards %}
         <label class="toggle">
           <input type="checkbox" name="enabled__{{ shard }}__{{ card.mod.workshop_id }}"
                  {{ 'checked' if card.enabled[shard] else '' }}
                  {{ 'disabled' if shard in shard_errors else '' }}>
-          {{ shard }}
+          {{ 'Enabled' if unified else shard }}
         </label>
         {% endfor %}
         <button type="submit" class="btn danger small" formaction="/mods/delete" formmethod="post"
@@ -188,7 +202,7 @@
     <details>
       <summary>Configuration ({{ card.num_options }} option{{ 's' if card.num_options != 1 else '' }})</summary>
       <div class="options-actions">
-        {% if shards|length > 1 %}
+        {% if shards|length > 1 and not unified %}
         <button type="button" class="btn small copy-shard" data-source="{{ shards[0] }}"
                 title="Copy every option value of this mod from {{ shards[0] }} to {{ shards[1:]|join(', ') }} — review, then Save. Enabled checkboxes are not touched.">
           Copy {{ shards[0] }} → {{ shards[1:]|join(', ') }}
@@ -202,18 +216,18 @@
       <table class="options-table">
         <tr>
           <th>Option</th>
-          {% for shard in shards %}<th>{{ shard }}</th>{% endfor %}
+          {% for shard in field_shards %}<th>{{ 'Value' if unified else shard }}</th>{% endfor %}
         </tr>
         {% for row in card.option_rows %}
           {% if row.is_header %}
-          <tr class="opt-section"><td colspan="{{ 1 + shards|length }}">{{ row.option.display_label }}</td></tr>
+          <tr class="opt-section"><td colspan="{{ 1 + field_shards|length }}">{{ row.option.display_label }}</td></tr>
           {% else %}
           <tr>
             <td title="{{ row.option.hover }}">
               {{ row.option.display_label }}
               {% if row.option.name != row.option.label %}<div class="muted small">{{ row.option.name }}</div>{% endif %}
             </td>
-            {% for shard in shards %}
+            {% for shard in field_shards %}
             {% set f = row.per_shard[shard] %}
             <td>
               {% if f.kind == 'select' %}

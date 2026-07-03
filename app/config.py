@@ -36,6 +36,10 @@ class DSTConfig:
     # server which Workshop mods to download at boot ("Add mod" writes here).
     mods_setup_path: Path
     shards: list[str] = field(default_factory=lambda: ["Master", "Caves"])
+    # True (default): the Mods page shows ONE set of controls per mod and
+    # saving writes identical settings to every shard — the usual setup.
+    # False: per-shard columns, shards can be configured independently.
+    unified_mod_config: bool = True
 
     def shard_dir(self, shard: str) -> Path:
         return self.cluster_path / shard
@@ -154,6 +158,7 @@ def load_config(path: str | Path | None = None) -> AppConfig:
             mods_path=mods_path,
             mods_setup_path=mods_setup_path,
             shards=[s.strip() for s in shards if s.strip()],
+            unified_mod_config=bool(dst_raw.get("unified_mod_config", True)),
         ),
         server=ServerConfig(
             host=str(server_raw.get("host", "127.0.0.1")),

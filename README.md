@@ -33,8 +33,11 @@ mod 参数，保存时自动备份并重新生成 `modoverrides.lua`。
   （提供 `ChooseTranslationTable`、`locale`、`folder_name` 等 DST 引擎全局变量的桩）
 - 单个 mod 解析失败不影响整体，UI 中显示错误信息，仍可启用/禁用
 - 读取每个 shard 的 `modoverrides.lua`；文件不存在视为空配置
-- 每个 mod 按 shard 单独启用/禁用；配置项按 `options` 渲染下拉框，布尔渲染
-  true/false 下拉框，无预设选项渲染文本框
+- **统一配置模式（默认）**：每个 mod 只有一个启用开关和一列参数，保存时把相同
+  设置写入所有 shard —— 因为两个 shard 几乎总是跑同一套 mod。检测到两边当前
+  不一致时显示 “shards differ” 徽章，保存一次即重新同步。需要分开配置时把
+  `dst.unified_mod_config` 设为 `false`，恢复 per-shard 双列模式
+- 配置项按 `options` 渲染下拉框，布尔渲染 true/false 下拉框，无预设选项渲染文本框
 - 当前值优先取自对应 shard 的 `modoverrides.lua`，否则用 modinfo 的 `default`
 - 每次操作前自动备份将被覆盖的文件，按操作分组为一条备份记录（详情页可看
   diff、单独/全部恢复、删除），按 `keep_last` 自动清理；写入采用
