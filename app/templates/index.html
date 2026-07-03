@@ -29,6 +29,13 @@
   </div>
 </div>
 
+{% from "_controls.html" import control_buttons, command_results %}
+<div class="panel">
+  <h2>Server control <span class="muted small">— <a href="/server">full server page: cluster settings, system status &amp; logs →</a></span></h2>
+  {{ control_buttons(cfg, "/") }}
+  {{ command_results(last_command) }}
+</div>
+
 <div class="panel">
   <h2>Paths</h2>
   <table class="kv-table">
@@ -57,15 +64,11 @@
   {% if scan_error %}<p class="error-text">{{ scan_error }}</p>{% endif %}
 </div>
 
-{% from "_controls.html" import control_buttons, command_results %}
-<div class="panel">
-  <h2>Server control <span class="muted small">— <a href="/server">full server page: cluster settings, system status &amp; logs →</a></span></h2>
-  {{ control_buttons(cfg, "/") }}
-  {{ command_results(last_command) }}
-</div>
-
+{# Quick links panel hidden for now — bring it back if the panel grows more
+   pages/features worth shortcutting to.
 <div class="panel">
   <h2>Quick links</h2>
   <p><a class="btn primary" href="/mods">Manage mods</a> <a class="btn" href="/backups">View backups</a></p>
 </div>
+#}
 {% endblock %}

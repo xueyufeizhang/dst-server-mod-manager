@@ -10,11 +10,11 @@
 <header class="topbar">
   <div class="brand">DST Mod Manager</div>
   <nav>
+    <a href="/" class="{{ 'active' if active_page == 'dashboard' else '' }}">Dashboard</a>
     <a href="/server" class="{{ 'active' if active_page == 'server' else '' }}">Server</a>
     <a href="/mods" class="{{ 'active' if active_page == 'mods' else '' }}">Mods</a>
     <a href="/files" class="{{ 'active' if active_page == 'files' else '' }}">Files</a>
     <a href="/backups" class="{{ 'active' if active_page == 'backups' else '' }}">Backups</a>
-    <a href="/" class="{{ 'active' if active_page == 'dashboard' else '' }}">Dashboard</a>
   </nav>
 </header>
 <main class="{% block main_class %}{% endblock %}">
