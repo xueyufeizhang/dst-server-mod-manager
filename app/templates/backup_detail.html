@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Backup {{ session.session_id }} · DST Mod Manager{% endblock %}
+{% block content %}
+<p><a href="/backups">&larr; back to backups</a></p>
+<h1>Backup {{ session.session_id }}</h1>
+
+<div class="panel">
+  <table class="kv-table">
+    <tr><th>Created</th><td>{{ session.created.strftime("%Y-%m-%d %H:%M:%S") }}</td></tr>
+    <tr><th>Operation</th><td><code>{{ session.reason }}</code></td></tr>
+    <tr><th>Files</th>
+      <td>{% for f in session.files %}<code>{{ f.filename }}</code> ({{ f.size }} B){{ ", " if not loop.last else "" }}{% endfor %}</td></tr>
+  </table>
+
+  {% if session.files|length > 1 %}
+  <p class="muted small">
+    This operation changed {{ session.files|length }} files together — <strong>Restore</strong>
+    puts all of them back at once. To restore a single file, use the button next to its diff
+    below (note: partially restoring an add/remove operation leaves the other files as they
+    are, e.g. restoring only ModSetup keeps the mod's modoverrides entries, which then show
+    under “Orphaned entries” on the Mods page).
+  </p>
+  {% endif %}
+  <div class="actions">
+    <form class="inline" method="post" action="/backups/restore"
+          onsubmit="return confirm('Restore all {{ session.files|length }} file(s) from backup {{ session.session_id }}?\nThe current files will be backed up first.');">
+      <input type="hidden" name="session_id" value="{{ session.session_id }}">
+      {% for f in session.files %}<input type="hidden" name="keys" value="{{ f.key }}">{% endfor %}
+      <button type="submit" class="btn primary">Restore</button>
+    </form>
+    <form class="inline" method="post" action="/backups/delete"
+          onsubmit="return confirm('Permanently delete backup {{ session.session_id }}? This cannot be undone.');">
+      <input type="hidden" name="session_ids" value="{{ session.session_id }}">
+      <button type="submit" class="btn danger">Delete this backup</button>
+    </form>
+  </div>
+</div>
+
+<h2>Changes made by this operation</h2>
+<p class="muted small">
+  Each diff compares this backup (the file <em>before</em> the operation) with the file's next
+  recorded state — the next backup that contains it, or the current live file for the most
+  recent record. Lines starting with <code>-</code> were removed by the operation, <code>+</code> were added.
+</p>
+
+{% for d in diffs %}
+<div class="panel">
+  <div class="diff-head">
+    <h3>{{ d.key }} <span class="muted small">compared with {{ d.after_label }}</span></h3>
+    <form class="inline" method="post" action="/backups/restore"
+          onsubmit="return confirm('Restore only {{ d.key }} from backup {{ session.session_id }}?\nThe current file will be backed up first.');">
+      <input type="hidden" name="session_id" value="{{ session.session_id }}">
+      <input type="hidden" name="keys" value="{{ d.key }}">
+      <button type="submit" class="btn small">Restore {{ d.key }}</button>
+    </form>
+  </div>
+  {% if d.lines %}
+  <div class="diff">{% for cls, line in d.lines %}<div class="dl {{ cls }}">{{ line }}</div>{% endfor %}</div>
+  {% else %}
+  <p class="muted">No differences — this operation did not change this file.</p>
+  {% endif %}
+  <details>
+    <summary>View full backup content</summary>
+    <pre class="wrap">{{ d.content }}</pre>
+  </details>
+</div>
+{% endfor %}
+{% endblock %}

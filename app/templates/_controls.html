@@ -1,0 +1,56 @@
+{# Shared server-control widgets, used by the dashboard and the Server page. #}
+
+{% macro control_buttons(cfg, next_url) %}
+<div class="control-buttons">
+  {% if cfg.server.start_command %}
+  <form method="post" action="/server/run" class="inline">
+    <input type="hidden" name="action" value="start">
+    <input type="hidden" name="next" value="{{ next_url }}">
+    <button type="submit" class="btn success">Start</button>
+  </form>
+  {% endif %}
+  {% if cfg.server.stop_command %}
+  <form method="post" action="/server/run" class="inline"
+        onsubmit="return confirm('Stop the DST server now? Connected players will be disconnected.');">
+    <input type="hidden" name="action" value="stop">
+    <input type="hidden" name="next" value="{{ next_url }}">
+    <button type="submit" class="btn danger">Stop</button>
+  </form>
+  {% endif %}
+  {% if cfg.server.restart_command %}
+  <form method="post" action="/server/run" class="inline"
+        onsubmit="return confirm('Restart the DST server now?');">
+    <input type="hidden" name="action" value="restart">
+    <input type="hidden" name="next" value="{{ next_url }}">
+    <button type="submit" class="btn danger">Restart</button>
+  </form>
+  {% endif %}
+  {% if cfg.server.status_command %}
+  <form method="post" action="/server/run" class="inline">
+    <input type="hidden" name="action" value="status">
+    <input type="hidden" name="next" value="{{ next_url }}">
+    <button type="submit" class="btn">Check status</button>
+  </form>
+  {% endif %}
+  {% if not (cfg.server.start_command or cfg.server.stop_command or cfg.server.restart_command or cfg.server.status_command) %}
+  <p class="muted">No control commands configured — set <code>start_command</code> /
+    <code>stop_command</code> / <code>restart_command</code> / <code>status_command</code>
+    in config.yaml (see the README for the systemd + sudoers setup).</p>
+  {% endif %}
+</div>
+{% endmacro %}
+
+{% macro command_results(last_command) %}
+{% if last_command %}
+{% set result = last_command.result %}
+<div class="cmd-result">
+  <h3>Last command: {{ last_command.action }} — {{ result.ran_at.strftime("%Y-%m-%d %H:%M:%S") if result.ran_at else "" }}
+    {% if result.ok %}<span class="badge ok">exit {{ result.exit_code }}</span>
+    {% else %}<span class="badge err">{{ result.error or ("exit " ~ result.exit_code) }}</span>{% endif %}
+  </h3>
+  <p class="muted"><code>{{ result.command }}</code></p>
+  {% if result.stdout %}<h4>stdout</h4><pre>{{ result.stdout }}</pre>{% endif %}
+  {% if result.stderr %}<h4>stderr</h4><pre>{{ result.stderr }}</pre>{% endif %}
+</div>
+{% endif %}
+{% endmacro %}

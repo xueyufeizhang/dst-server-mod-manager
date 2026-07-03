@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Backups · DST Mod Manager{% endblock %}
+{% block content %}
+<h1>Backups</h1>
+<p class="muted">
+  Every save / add / remove / restore operation backs up the files it overwrites into a single
+  backup record. Keeping the last
+  {{ cfg.backup.keep_last if cfg.backup.keep_last > 0 else "∞" }} records in
+  <code>{{ cfg.backup.directory }}</code>.
+</p>
+
+{% if not sessions %}
+<p class="muted">No backups yet — they will appear after your first save.</p>
+{% else %}
+<form method="post" action="/backups/delete" id="backups-form">
+  <div class="toolbar">
+    <button type="submit" class="btn danger" id="delete-selected" disabled>Delete selected</button>
+    <span class="muted small">Tick rows below, or open a record for details, diffs and restore.</span>
+  </div>
+  <table class="list-table">
+    <tr>
+      <th class="checkbox-cell"><input type="checkbox" id="backup-select-all" title="Select all"></th>
+      <th>Created</th><th>Operation</th><th>Files</th><th></th>
+    </tr>
+    {% for s in sessions %}
+    <tr>
+      <td class="checkbox-cell">
+        <input type="checkbox" name="session_ids" value="{{ s.session_id }}"
+               aria-label="Select backup {{ s.session_id }}">
+      </td>
+      <td><a href="/backups/{{ s.session_id }}">{{ s.created.strftime("%Y-%m-%d %H:%M:%S") }}</a></td>
+      <td><code>{{ s.reason }}</code></td>
+      <td>
+        {% for f in s.files %}<span class="badge muted-badge">{{ f.key }}</span> {% endfor %}
+      </td>
+      <td><a class="btn small" href="/backups/{{ s.session_id }}">details / restore</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+</form>
+{% endif %}
+{% endblock %}

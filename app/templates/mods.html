@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+{% block title %}Mods · DST Mod Manager{% endblock %}
+{% block content %}
+<h1>Mods</h1>
+
+{% if scan_error %}
+<div class="flash flash-error">{{ scan_error }}</div>
+{% endif %}
+{% for shard, error in shard_errors.items() %}
+<div class="flash flash-error">
+  <strong>{{ shard }}/modoverrides.lua could not be parsed</strong> — saving is disabled for this
+  shard until the file is fixed or restored from a backup.<br>
+  <code>{{ error }}</code>
+</div>
+{% endfor %}
+
+<div class="panel add-panel">
+  <h2>Add a mod by Workshop ID</h2>
+  <form method="post" action="/mods/add" class="add-form">
+    <input type="text" name="workshop_input" required autocomplete="off"
+           placeholder="Workshop ID (e.g. 378160973) or steamcommunity.com workshop URL">
+    {% for shard in shards %}
+    <label class="toggle">
+      <input type="checkbox" name="add_shards" value="{{ shard }}" checked> enable in {{ shard }}
+    </label>
+    {% endfor %}
+    <button type="submit" class="btn primary" name="action" value="add_download"
+            {{ 'disabled' if not steamcmd_found else '' }}
+            title="{{ 'Download immediately with steamcmd — may take a minute (longer on its first run)' if steamcmd_found else 'steamcmd not found on this machine' }}">
+      Add &amp; download now
+    </button>
+    <button type="submit" class="btn" name="action" value="add"
+            title="Only register the mod; the DST server downloads it on its next restart">
+      Add only
+    </button>
+  </form>
+  <p class="muted small">
+    Both write <code>ServerModSetup("&lt;id&gt;")</code> to <code>{{ cfg.dst.mods_setup_path.name }}</code>
+    and enable the mod in the selected shards. “Add &amp; download now” also fetches the mod
+    immediately with steamcmd, so you can configure it right away and restart the server just
+    once. “Add only” leaves the download to the server's next restart.
+    {% if not steamcmd_found %}
+    <br><strong>steamcmd not found</strong> — direct downloads are disabled. Install it
+    (e.g. <code>sudo apt install steamcmd</code>) or set <code>steamcmd.command</code> in config.yaml.
+    {% endif %}
+  </p>
+</div>
+
+<div id="download-status" class="panel dl-panel" style="display:none">
+  <div class="dl-label">Downloading…</div>
+  <div class="progress-track"><div class="progress-fill"></div></div>
+  <div class="dl-log muted small"></div>
+</div>
+
+<form method="post" action="/mods/save" id="mods-form">
+  <div class="toolbar">
+    <input type="search" id="mod-search" placeholder="Search name / workshop ID / author…" autocomplete="off">
+    <a class="btn" href="/mods?refresh=1" title="Clear the modinfo cache and rescan the mods folder">Rescan</a>
+    <button type="submit" class="btn primary">Save all changes</button>
+  </div>
+
+  {% if not cards and not pending %}
+  <p class="muted">No workshop mods found in <code>{{ cfg.dst.mods_path }}</code>.</p>
+  {% endif %}
+
+  {% macro not_downloaded_card(p) %}
+  <div class="mod-card {{ 'mod-card-pending' if p.in_setup else 'mod-card-orphan' }}"
+       data-search="{{ p.override_key }} {{ p.workshop_id }}">
+    <input type="hidden" name="mod_ids" value="{{ p.workshop_id }}">
+    <div class="mod-head">
+      <div class="mod-title">
+        {{ p.override_key }}
+        <span class="badge muted-badge">not downloaded yet</span>
+        {% if not p.in_setup %}
+        <span class="badge warn"
+              title="Missing from dedicated_server_mods_setup.lua — the server will NOT download this mod.">not in download list</span>
+        {% endif %}
+        <a class="muted small" href="https://steamcommunity.com/sharedfiles/filedetails/?id={{ p.workshop_id }}"
+           target="_blank" rel="noopener">workshop page ↗</a>
+      </div>
+      <div class="shard-toggles">
+        {% for shard in shards %}
+        <label class="toggle">
+          <input type="checkbox" name="enabled__{{ shard }}__{{ p.workshop_id }}"
+                 {{ 'checked' if p.enabled[shard] else '' }}
+                 {{ 'disabled' if shard in shard_errors else '' }}>
+          {{ shard }}
+        </label>
+        {% endfor %}
+        {% if p.in_setup %}
+        <button type="submit" class="btn small" formaction="/mods/download" formmethod="post"
+                name="workshop_id" value="{{ p.workshop_id }}"
+                {{ 'disabled' if not steamcmd_found else '' }}
+                title="{{ 'Download this mod now with steamcmd — may take a minute' if steamcmd_found else 'steamcmd not found on this machine' }}">
+          Download now
+        </button>
+        {% else %}
+        <button type="submit" class="btn small" formaction="/mods/add" formmethod="post"
+                name="workshop_input" value="{{ p.workshop_id }}"
+                title="Put ServerModSetup(&quot;{{ p.workshop_id }}&quot;) back into {{ cfg.dst.mods_setup_path.name }} so the server downloads this mod again">
+          Re-add to download list
+        </button>
+        {% endif %}
+        <button type="submit" class="btn danger small" formaction="/mods/remove" formmethod="post"
+                name="workshop_id" value="{{ p.workshop_id }}"
+                onclick="return confirm('Remove {{ p.override_key }} from modoverrides.lua and dedicated_server_mods_setup.lua?');">
+          Remove
+        </button>
+      </div>
+    </div>
+    <p class="muted small">
+      {% if p.in_setup and p.in_overrides %}
+      Listed in the download list and modoverrides.lua but no mod folder found — restart the
+      DST server to download it, or Remove the entry if it was added by mistake.
+      {% elif p.in_setup %}
+      Listed in dedicated_server_mods_setup.lua only — the server will download it, but it is
+      not enabled in any shard yet. Tick a shard and Save to enable it, or Remove it from the
+      download list.
+      {% else %}
+      Referenced by modoverrides.lua but missing from dedicated_server_mods_setup.lua — the
+      server will <strong>not</strong> download it. Click “Re-add to download list” to make it
+      downloadable again (shard settings are kept), or Remove the leftover entry.
+      {% endif %}
+      {% for shard in shards %}{% if p.option_counts[shard] %}{{ shard }}: {{ p.option_counts[shard] }} saved option(s) preserved. {% endif %}{% endfor %}
+    </p>
+  </div>
+  {% endmacro %}
+
+  {% if pending %}
+  <h2 class="section-h">Pending download ({{ pending|length }})</h2>
+  {% for p in pending %}{{ not_downloaded_card(p) }}{% endfor %}
+  {% endif %}
+
+  {% if orphaned %}
+  <h2 class="section-h">Orphaned entries — won't be downloaded ({{ orphaned|length }})</h2>
+  {% for p in orphaned %}{{ not_downloaded_card(p) }}{% endfor %}
+  {% endif %}
+
+  {% if cards %}<h2 class="section-h">Downloaded ({{ cards|length }})</h2>{% endif %}
+
+  {% for card in cards %}
+  <div class="mod-card {{ 'mod-card-error' if not card.mod.parse_ok else '' }}" data-search="{{ card.search_blob }}">
+    <input type="hidden" name="mod_ids" value="{{ card.mod.workshop_id }}">
+    <div class="mod-head">
+      <div class="mod-title">
+        <a href="/mods/{{ card.mod.workshop_id }}">{{ card.mod.display_name }}</a>
+        <span class="muted">{{ card.mod.override_key }}</span>
+        {% if card.mod.parse_ok %}
+          <span class="badge ok">parsed</span>
+        {% else %}
+          <span class="badge err">parse failed</span>
+        {% endif %}
+        {# The download-list hint is secondary noise on a broken mod — the
+           parse failure is the signal that matters there. #}
+        {% if card.mod.parse_ok and not card.in_setup %}
+        <span class="badge warn"
+              title="Downloaded, but missing from dedicated_server_mods_setup.lua — the server will not update it and may remove it at its next restart.">not in download list</span>
+        {% endif %}
+      </div>
+      <div class="shard-toggles">
+        {% for shard in shards %}
+        <label class="toggle">
+          <input type="checkbox" name="enabled__{{ shard }}__{{ card.mod.workshop_id }}"
+                 {{ 'checked' if card.enabled[shard] else '' }}
+                 {{ 'disabled' if shard in shard_errors else '' }}>
+          {{ shard }}
+        </label>
+        {% endfor %}
+        <button type="submit" class="btn danger small" formaction="/mods/delete" formmethod="post"
+                name="workshop_id" value="{{ card.mod.workshop_id }}"
+                title="Delete the local mod folder AND every trace of its configuration"
+                onclick="return confirm('Delete {{ card.mod.override_key }} completely?\n\nThis removes the local mod folder, its entries in every shard, and its download-list line.\n\nSettings are backed up first; the mod files can be re-downloaded from the Workshop.');">
+          Delete
+        </button>
+      </div>
+    </div>
+    <div class="mod-meta muted">
+      by {{ card.mod.author or "unknown" }}
+      {% if card.mod.version %} · v{{ card.mod.version }}{% endif %}
+      · folder <code>{{ card.mod.folder_name }}</code>
+    </div>
+    {% if card.short_description %}<p class="mod-desc">{{ card.short_description }}</p>{% endif %}
+    {% if card.mod.parse_error %}
+      <p class="error-text">modinfo.lua error: {{ card.mod.parse_error }}</p>
+    {% endif %}
+
+    {% if card.option_rows %}
+    <details>
+      <summary>Configuration ({{ card.num_options }} option{{ 's' if card.num_options != 1 else '' }})</summary>
+      <div class="options-actions">
+        {% if shards|length > 1 %}
+        <button type="button" class="btn small copy-shard" data-source="{{ shards[0] }}"
+                title="Copy every option value of this mod from {{ shards[0] }} to {{ shards[1:]|join(', ') }} — review, then Save. Enabled checkboxes are not touched.">
+          Copy {{ shards[0] }} → {{ shards[1:]|join(', ') }}
+        </button>
+        {% endif %}
+        <button type="button" class="btn small reset-defaults"
+                title="Set every option of this mod (all shards) back to its modinfo default — then review and Save">
+          Reset to defaults
+        </button>
+      </div>
+      <table class="options-table">
+        <tr>
+          <th>Option</th>
+          {% for shard in shards %}<th>{{ shard }}</th>{% endfor %}
+        </tr>
+        {% for row in card.option_rows %}
+          {% if row.is_header %}
+          <tr class="opt-section"><td colspan="{{ 1 + shards|length }}">{{ row.option.display_label }}</td></tr>
+          {% else %}
+          <tr>
+            <td title="{{ row.option.hover }}">
+              {{ row.option.display_label }}
+              {% if row.option.name != row.option.label %}<div class="muted small">{{ row.option.name }}</div>{% endif %}
+            </td>
+            {% for shard in shards %}
+            {% set f = row.per_shard[shard] %}
+            <td>
+              {% if f.kind == 'select' %}
+              <select name="{{ f.input_name }}" data-default="{{ f.default_value }}"
+                      {{ 'disabled' if shard in shard_errors else '' }}>
+                {% for c in f.choices %}
+                <option value="{{ c.value }}" {{ 'selected' if c.selected else '' }} title="{{ c.hover }}">{{ c.label }}</option>
+                {% endfor %}
+              </select>
+              {% else %}
+              <input type="text" name="{{ f.input_name }}" value="{{ f.text_value }}"
+                     data-default="{{ f.default_value }}"
+                     {{ 'disabled' if shard in shard_errors else '' }}>
+              {% endif %}
+            </td>
+            {% endfor %}
+          </tr>
+          {% endif %}
+        {% endfor %}
+      </table>
+      {% for shard, extras in card.extra_options.items() %}
+      <p class="muted small">
+        {{ shard }}: options present in modoverrides.lua but unknown to modinfo (preserved as-is on save):
+        {% for k, v in extras.items() %}<code>{{ k }}</code>{{ ", " if not loop.last else "" }}{% endfor %}
+      </p>
+      {% endfor %}
+    </details>
+    {% endif %}
+  </div>
+  {% endfor %}
+
+  {% if cards %}
+  <div class="toolbar bottom">
+    <button type="submit" class="btn primary">Save all changes</button>
+    <span class="muted">Saving rewrites modoverrides.lua for every shard (old files are backed up first).
+      A DST server restart is required for changes to take effect.</span>
+  </div>
+  {% endif %}
+</form>
+{% endblock %}

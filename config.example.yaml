@@ -1,0 +1,72 @@
+# dst-mod-manager configuration
+#
+# Copy this file to config.yaml and adjust the paths for your server:
+#   cp config.example.yaml config.yaml
+#
+# Relative paths are resolved relative to the directory containing this file.
+
+dst:
+  # The cluster directory that contains the shard folders (Master/, Caves/, ...)
+  cluster_path: /home/steam/.klei/DoNotStarveTogether/MyDediServer
+
+  # The directory that contains the downloaded workshop mods
+  # (folders named workshop-378160973 etc., bare numeric ids also accepted).
+  # If your server uses -ugc_directory, this is usually:
+  #   <ugc_dir>/content/322330
+  mods_path: "/home/steam/Steam/steamapps/common/Don't Starve Together Dedicated Server/mods"
+
+  # dedicated_server_mods_setup.lua — the "Add mod" feature appends
+  # ServerModSetup("<id>") lines here so the server downloads the mod at
+  # its next boot. Empty = <mods_path>/dedicated_server_mods_setup.lua
+  # (the standard location).
+  mods_setup_path: ""
+
+  # Shard folder names inside cluster_path.
+  shards:
+    - Master
+    - Caves
+
+server:
+  # SECURITY: keep 127.0.0.1 and access the panel through an SSH tunnel.
+  # Do NOT change this to 0.0.0.0 unless you know exactly what you are doing.
+  host: 127.0.0.1
+  port: 8080
+
+  # Optional shell commands behind the Start / Stop / Restart / Check status
+  # buttons. Leave a command empty to hide its button. With one systemd unit
+  # per shard (see README for the sudoers setup):
+  #   start_command:   "sudo systemctl start dst-master dst-caves"
+  #   stop_command:    "sudo systemctl stop dst-master dst-caves"
+  #   restart_command: "sudo systemctl restart dst-master dst-caves"
+  #   status_command:  "systemctl status dst-master dst-caves --no-pager -l"
+  start_command: ""
+  stop_command: ""
+  restart_command: ""
+  status_command: ""
+
+security:
+  # HTTP Basic Auth for every page. Change the password!
+  enable_basic_auth: true
+  username: admin
+  password: changeme
+
+backup:
+  # Where modoverrides.lua backups are stored (one subfolder per shard).
+  directory: backups
+  # How many backups to keep per shard; 0 or negative = keep all.
+  keep_last: 20
+
+lua:
+  # Lua interpreter used to parse modinfo.lua / modoverrides.lua.
+  # Empty = auto-detect (tries lua5.4, lua5.3, lua5.2, lua5.1, lua, luajit).
+  command: ""
+
+steamcmd:
+  # Used by the optional "Add & download now" / "Download now" buttons to
+  # fetch workshop mods immediately (anonymous login). Everything else works
+  # without steamcmd — mods are then downloaded by the DST server at its
+  # next restart. Empty = auto-detect "steamcmd" in PATH.
+  command: ""
+  # Seconds before a download attempt is aborted (steamcmd's first run
+  # self-updates and can take several minutes).
+  timeout: 900

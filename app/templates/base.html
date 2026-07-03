@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}DST Mod Manager{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css?v={{ static_version }}">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">DST Mod Manager</div>
+  <nav>
+    <a href="/" class="{{ 'active' if active_page == 'dashboard' else '' }}">Dashboard</a>
+    <a href="/mods" class="{{ 'active' if active_page == 'mods' else '' }}">Mods</a>
+    <a href="/files" class="{{ 'active' if active_page == 'files' else '' }}">Files</a>
+    <a href="/server" class="{{ 'active' if active_page == 'server' else '' }}">Server</a>
+    <a href="/backups" class="{{ 'active' if active_page == 'backups' else '' }}">Backups</a>
+  </nav>
+</header>
+<main class="{% block main_class %}{% endblock %}">
+  {% set flash_msg = request.query_params.get('msg') %}
+  {% if flash_msg %}
+    <div class="flash flash-{{ request.query_params.get('level', 'success') }}">{{ flash_msg }}</div>
+  {% endif %}
+  {% block content %}{% endblock %}
+</main>
+<footer class="footer">
+  dst-mod-manager &middot; config: <code>{{ cfg.config_path }}</code>
+</footer>
+<script src="/static/app.js?v={{ static_version }}"></script>
+</body>
+</html>

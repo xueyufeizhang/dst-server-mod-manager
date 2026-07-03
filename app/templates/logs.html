@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}{{ shard }} log · DST Mod Manager{% endblock %}
+{% block main_class %}wide{% endblock %}
+{% block content %}
+<p><a href="/server">&larr; back to server</a></p>
+<h1>{{ shard }} — server_log.txt</h1>
+
+{% if content is none %}
+<p class="muted">Log file not found: <code>{{ log_path }}</code>
+  (it is created when the shard starts for the first time).</p>
+{% elif error %}
+<p class="error-text">{{ error }}</p>
+{% else %}
+<div class="toolbar">
+  <span class="muted small"><code>{{ log_path }}</code> · {{ size }} · modified {{ mtime }}</span>
+  <span class="muted small">showing last
+    {% for n in line_options %}
+      {% if n == lines %}<strong>{{ n }}</strong>{% else %}<a href="/server/logs/{{ shard }}?lines={{ n }}">{{ n }}</a>{% endif %}{{ " / " if not loop.last else "" }}
+    {% endfor %} lines</span>
+  <a class="btn small" href="/server/logs/{{ shard }}?lines={{ lines }}">Refresh</a>
+</div>
+<pre class="log-view" id="log-view">{{ content }}</pre>
+{% endif %}
+{% endblock %}

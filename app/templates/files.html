@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Files · DST Mod Manager{% endblock %}
+{% block main_class %}wide{% endblock %}
+{% block content %}
+<h1>Files</h1>
+<p class="muted">
+  The raw files this panel manages. Edits are validated with Lua before anything is written
+  (modoverrides must <code>return</code> a table; the mods-setup file must at least compile),
+  the old file is backed up first, and saving is refused if the file changed on disk while
+  you were editing. Note: saving from the <a href="/mods">Mods</a> page rewrites
+  modoverrides.lua in a normalized format, so manual formatting there won't survive.
+</p>
+
+{% for f in files %}
+<div class="panel file-editor">
+  <div class="file-head">
+    <h2>{{ f.key }}</h2>
+    <span class="muted small">
+      <code>{{ f.path }}</code>
+      {% if f.exists %}
+        · {{ f.content|length }} B{% if f.mtime %} · modified {{ f.mtime.strftime("%Y-%m-%d %H:%M:%S") }}{% endif %}
+      {% else %}
+        <span class="badge muted-badge">missing — saving will create it</span>
+      {% endif %}
+    </span>
+  </div>
+  {% if f.error %}
+  <p class="error-text">{{ f.error }}</p>
+  {% else %}
+  <form method="post" action="/files/save">
+    <input type="hidden" name="key" value="{{ f.key }}">
+    <input type="hidden" name="base_hash" value="{{ f.hash }}">
+    <textarea name="content" spellcheck="false" wrap="off">{{ f.content }}</textarea>
+    <div class="toolbar">
+      <button type="submit" class="btn primary">Save {{ f.key }}</button>
+      <span class="muted small">Validated, backed up, then written atomically. A DST server restart is required for changes to take effect.</span>
+    </div>
+  </form>
+  {% endif %}
+</div>
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}{{ mod.display_name }} · DST Mod Manager{% endblock %}
+{% block content %}
+<p><a href="/mods">&larr; back to mods</a></p>
+<h1>{{ mod.display_name }}</h1>
+
+<div class="panel">
+  <table class="kv-table">
+    <tr><th>Workshop ID</th><td>{{ mod.workshop_id }} (<code>{{ mod.override_key }}</code>)</td></tr>
+    <tr><th>Folder</th><td><code>{{ mod.path }}</code></td></tr>
+    <tr><th>Author</th><td>{{ mod.author or "unknown" }}</td></tr>
+    <tr><th>Version</th><td>{{ mod.version or "unknown" }}</td></tr>
+    <tr><th>Parse status</th>
+      <td>{% if mod.parse_ok %}<span class="badge ok">ok</span>{% else %}
+          <span class="badge err">failed</span> <code>{{ mod.parse_error }}</code>{% endif %}</td></tr>
+    {% for shard in shards %}
+    <tr><th>{{ shard }}</th>
+      <td>{% if card.enabled[shard] %}<span class="badge ok">enabled</span>{% else %}
+          <span class="badge muted-badge">disabled</span>{% endif %}</td></tr>
+    {% endfor %}
+  </table>
+</div>
+
+{% if mod.description %}
+<div class="panel">
+  <h2>Description</h2>
+  <pre class="wrap">{{ mod.description }}</pre>
+</div>
+{% endif %}
+
+{% if card.option_rows %}
+<div class="panel">
+  <h2>Configuration options (current values, read-only)</h2>
+  <p class="muted">Edit these from the <a href="/mods">Mods</a> page.</p>
+  <table class="options-table">
+    <tr><th>Option</th><th>Default</th>{% for shard in shards %}<th>{{ shard }}</th>{% endfor %}</tr>
+    {% for row in card.option_rows %}
+      {% if row.is_header %}
+      <tr class="opt-section"><td colspan="{{ 2 + shards|length }}">{{ row.option.display_label }}</td></tr>
+      {% else %}
+      <tr>
+        <td title="{{ row.option.hover }}">{{ row.option.display_label }}
+          {% if row.option.name != row.option.label %}<div class="muted small">{{ row.option.name }}</div>{% endif %}
+        </td>
+        <td><code>{{ row.option.default if row.option.default is not none else "nil" }}</code></td>
+        {% for shard in shards %}
+        {% set f = row.per_shard[shard] %}
+        <td>
+          {% if f.kind == 'select' %}
+            {% for c in f.choices %}{% if c.selected %}<code>{{ c.label }}</code>{% endif %}{% endfor %}
+          {% else %}
+            <code>{{ f.text_value or "nil" }}</code>
+          {% endif %}
+        </td>
+        {% endfor %}
+      </tr>
+      {% endif %}
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+{% endblock %}

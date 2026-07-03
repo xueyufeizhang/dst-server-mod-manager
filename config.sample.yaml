@@ -1,0 +1,40 @@
+# Configuration pointing at the bundled sample_data, for local testing
+# without a real DST server:
+#
+#   DST_MOD_MANAGER_CONFIG=config.sample.yaml ./run.sh
+#   # or: ./run.sh config.sample.yaml
+#
+# Then open http://127.0.0.1:8080 (user: admin / password: changeme).
+
+dst:
+  cluster_path: sample_data/cluster/MyDediServer
+  mods_path: sample_data/mods
+  mods_setup_path: ""   # defaults to sample_data/mods/dedicated_server_mods_setup.lua
+  shards:
+    - Master
+    - Caves
+
+server:
+  host: 127.0.0.1
+  port: 8080
+  # Harmless demo commands so you can try the control buttons locally.
+  start_command: "echo 'pretend start: systemctl start dst-master dst-caves'"
+  stop_command: "echo 'pretend stop: systemctl stop dst-master dst-caves'"
+  restart_command: "echo 'pretend restart: systemctl restart dst-master dst-caves'"
+  status_command: "echo 'pretend status: server is running'"
+
+security:
+  enable_basic_auth: true
+  username: admin
+  password: changeme
+
+backup:
+  directory: backups
+  keep_last: 20
+
+lua:
+  command: ""
+
+steamcmd:
+  command: "/Users/arvin/arvinDoc/dst-server-mod-manager/sample_data/steamcmd/steamcmd.sh"   # empty = auto-detect; "download now" buttons disable if absent
+  timeout: 900

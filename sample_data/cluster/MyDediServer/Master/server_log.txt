@@ -1,0 +1,12 @@
+[00:00:00]: PersistRootStorage is now APP:Klei//DoNotStarveTogether/MyDediServer/Master
+[00:00:00]: Starting Up
+[00:00:00]: Version: 623658
+[00:00:00]: Don't Starve Together: 623658 LINUX
+[00:00:01]: Network tick rate: U=15(2), D=0
+[00:00:01]: Setting up socket descriptors
+[00:00:02]: Online Server Started on port: 11000
+[00:00:03]: ModIndex: Load sequence finished successfully.
+[00:00:03]: Mod: workshop-378160973 (Global Positions) Loading modworldgenmain.lua
+[00:00:05]: World generated on build 623658
+[00:00:08]: Sim paused
+[00:01:12]: This is a sample log file so the log viewer has something to show locally.

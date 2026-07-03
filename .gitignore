@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Local deployment files (never commit real credentials/paths)
+config.yaml
+
+# Runtime data
+backups/
+
+# Locally installed steamcmd (don't commit Steam binaries)
+sample_data/steamcmd/
+
+# Real workshop mods downloaded during local testing — only the three
+# hand-crafted sample mods belong in the repo, and for the Global Positions
+# sample only its modinfo.lua (not the full third-party mod content).
+sample_data/mods/workshop-*/
+!sample_data/mods/workshop-123456789/
+!sample_data/mods/workshop-999999999/
+!sample_data/mods/workshop-378160973/
+sample_data/mods/workshop-378160973/*
+!sample_data/mods/workshop-378160973/modinfo.lua
+
+# steamcmd leftovers on macOS
+sample_data/Frameworks

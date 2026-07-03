@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · DST Mod Manager{% endblock %}
+{% block content %}
+<h1>Dashboard</h1>
+
+{% if warnings %}
+<div class="panel warn-panel">
+  <h2>Warnings</h2>
+  <ul>
+    {% for w in warnings %}<li>{{ w }}</li>{% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<div class="stat-grid">
+  <div class="stat">
+    <div class="stat-value">{{ mods_total }}</div>
+    <div class="stat-label">mods downloaded{% if mods_failed %} ({{ mods_failed }} failed to parse){% endif %}</div>
+  </div>
+  {% for shard in shards %}
+  <div class="stat">
+    <div class="stat-value">{{ overrides[shard].enabled_count }}</div>
+    <div class="stat-label">enabled in {{ shard }}</div>
+  </div>
+  {% endfor %}
+  <div class="stat">
+    <div class="stat-value">{{ backups_count }}</div>
+    <div class="stat-label">backups stored</div>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Paths</h2>
+  <table class="kv-table">
+    <tr><th>mods_path</th><td><code>{{ cfg.dst.mods_path }}</code></td></tr>
+    <tr><th>cluster_path</th><td><code>{{ cfg.dst.cluster_path }}</code></td></tr>
+    <tr><th>lua interpreter</th><td><code>{{ lua_command or "not found!" }}</code></td></tr>
+    <tr><th>steamcmd</th>
+      <td>{% if steamcmd_command %}<code>{{ steamcmd_command }}</code>
+          {% else %}<span class="muted">not found — “download now” is disabled (optional)</span>{% endif %}</td></tr>
+    {% for shard in shards %}
+    <tr>
+      <th>{{ shard }}</th>
+      <td>
+        <code>{{ overrides[shard].path }}</code>
+        {% if not overrides[shard].ok %}
+          <span class="badge err">parse error</span>
+        {% elif overrides[shard].exists %}
+          <span class="badge ok">ok</span>
+        {% else %}
+          <span class="badge muted-badge">missing (treated as empty)</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% if scan_error %}<p class="error-text">{{ scan_error }}</p>{% endif %}
+</div>
+
+{% from "_controls.html" import control_buttons, command_results %}
+<div class="panel">
+  <h2>Server control <span class="muted small">— <a href="/server">full server page: cluster settings, system status &amp; logs →</a></span></h2>
+  {{ control_buttons(cfg, "/") }}
+  {{ command_results(last_command) }}
+</div>
+
+<div class="panel">
+  <h2>Quick links</h2>
+  <p><a class="btn primary" href="/mods">Manage mods</a> <a class="btn" href="/backups">View backups</a></p>
+</div>
+{% endblock %}

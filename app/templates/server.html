@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Server · DST Mod Manager{% endblock %}
+{% block content %}
+<h1>Server{% if cluster.cluster_name %} — {{ cluster.cluster_name }}{% endif %}</h1>
+
+{% from "_controls.html" import control_buttons, command_results %}
+<div class="panel">
+  <h2>Control</h2>
+  {{ control_buttons(cfg, "/server") }}
+  {{ command_results(last_command) }}
+</div>
+
+<div class="panel">
+  <h2>Logs</h2>
+  <table class="list-table">
+    <tr><th>Shard</th><th>Log file</th><th>Size</th><th>Modified</th><th></th></tr>
+    {% for entry in logs %}
+    <tr>
+      <td>{{ entry.shard }}</td>
+      <td><code title="{{ entry.path }}">{{ entry.path.name }}</code>
+        {% if not entry.exists %}<span class="badge muted-badge">missing</span>{% endif %}</td>
+      <td>{{ entry.size or "—" }}</td>
+      <td>{{ entry.mtime or "—" }}</td>
+      <td class="nowrap">{% if entry.exists %}<a class="btn small" href="/server/logs/{{ entry.shard }}">view log</a>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+
+<div class="panel">
+  <h2>System status <span class="muted small">— {{ system.hostname }} · {{ system.now }} (reload the page to refresh)</span></h2>
+  <table class="kv-table">
+    {% if system.cpu_count %}<tr><th>CPU cores</th><td>{{ system.cpu_count }}
+      {% if system.load %} · load average <code>{{ system.load }}</code>{% endif %}</td></tr>{% endif %}
+    {% if system.uptime %}<tr><th>Host uptime</th><td>{{ system.uptime }}</td></tr>{% endif %}
+  </table>
+  {% macro meter_row(m) %}
+  <div class="meter-row">
+    <div class="meter-label">{{ m.label }}</div>
+    <div class="meter {{ 'crit' if m.percent >= 90 else 'warn' if m.percent >= 75 else '' }}">
+      <span style="width: {{ m.percent }}%"></span>
+    </div>
+    <div class="meter-pct">{{ m.percent }}%</div>
+    <div class="muted small">{{ m.detail }}</div>
+  </div>
+  {% endmacro %}
+  {% if system.memory %}{{ meter_row(system.memory) }}{% endif %}
+  {% for disk in system.disks %}{{ meter_row(disk) }}{% endfor %}
+  {% if not system.memory and not system.disks %}
+  <p class="muted">System metrics are unavailable on this host.</p>
+  {% endif %}
+</div>
+
+<div class="panel">
+  <h2>Cluster configuration <span class="muted small">— read-only</span></h2>
+  {% if not cluster.cluster.exists %}
+  <p class="muted">cluster.ini not found at <code>{{ cluster.cluster.path }}</code>.</p>
+  {% else %}
+  {% if cluster.cluster.error %}<p class="error-text">{{ cluster.cluster.error }}</p>{% endif %}
+  <table class="kv-table">
+    {% for label, value in cluster.cluster.summary %}
+    <tr><th>{{ label }}</th><td>{{ value }}</td></tr>
+    {% endfor %}
+    <tr><th>Cluster token</th>
+      <td>{% if cluster.token_present %}<span class="badge ok">cluster_token.txt present</span>
+          {% else %}<span class="badge err">cluster_token.txt missing</span>{% endif %}</td></tr>
+  </table>
+  {% if cluster.cluster.raw_masked %}
+  <details>
+    <summary>View cluster.ini (sensitive values masked)</summary>
+    <pre class="wrap">{{ cluster.cluster.raw_masked }}</pre>
+  </details>
+  {% endif %}
+  {% endif %}
+</div>
+
+{% for shard in cluster.shards %}
+<div class="panel">
+  <h2>{{ shard.title }}</h2>
+  {% if not shard.exists %}
+  <p class="muted">not found at <code>{{ shard.path }}</code></p>
+  {% else %}
+  {% if shard.error %}<p class="error-text">{{ shard.error }}</p>{% endif %}
+  {% if shard.summary %}
+  <table class="kv-table">
+    {% for label, value in shard.summary %}
+    <tr><th>{{ label }}</th><td>{{ value }}</td></tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+  {% if shard.raw_masked %}
+  <details>
+    <summary>View {{ shard.title }} (sensitive values masked)</summary>
+    <pre class="wrap">{{ shard.raw_masked }}</pre>
+  </details>
+  {% endif %}
+  {% endif %}
+</div>
+{% endfor %}
+{% endblock %}
