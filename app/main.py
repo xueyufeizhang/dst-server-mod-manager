@@ -231,6 +231,12 @@ def create_app() -> FastAPI:
         context.setdefault("static_version", static_version)
         return templates.TemplateResponse(request, name, context)
 
+    def _unified_field_shards() -> tuple[bool, list[str]]:
+        """(unified?, shards that get form fields/columns). In unified mode
+        all controls bind to the primary shard and apply everywhere."""
+        unified = cfg.dst.unified_mod_config and len(cfg.dst.shards) > 1
+        return unified, ([cfg.dst.shards[0]] if unified else cfg.dst.shards)
+
     # ------------------------------------------------------------------ #
     # Dashboard
     # ------------------------------------------------------------------ #
@@ -255,6 +261,7 @@ def create_app() -> FastAPI:
             "lua_command": lua_command,
             "steamcmd_command": find_steamcmd(cfg.steamcmd.command),
             "last_command": app.state.last_command,
+            "unified": _unified_field_shards()[0],
         })
 
     # ------------------------------------------------------------------ #
@@ -276,11 +283,7 @@ def create_app() -> FastAPI:
         except OSError:
             pass
 
-        # Unified mode: one set of controls, saved identically to every
-        # shard (the usual setup). Fields are bound to the primary shard.
-        unified = cfg.dst.unified_mod_config and len(cfg.dst.shards) > 1
-        field_shards = [cfg.dst.shards[0]] if unified else cfg.dst.shards
-
+        unified, field_shards = _unified_field_shards()
         cards = [
             build_mod_card(mod, cfg.dst.shards, overrides, setup_ids, field_shards)
             for mod in mods
@@ -314,12 +317,15 @@ def create_app() -> FastAPI:
         if mod is None:
             raise HTTPException(status_code=404, detail=f"mod not found: {workshop_id} ({scan_error})")
         overrides = _load_all_overrides(cfg)
-        card = build_mod_card(mod, cfg.dst.shards, overrides)
+        unified, field_shards = _unified_field_shards()
+        card = build_mod_card(mod, cfg.dst.shards, overrides, None, field_shards)
         return render(request, "mod_detail.html", {
             "active_page": "mods",
             "card": card,
             "mod": mod,
             "overrides": overrides,
+            "unified": unified,
+            "field_shards": field_shards,
         })
 
     @app.post("/mods/save")

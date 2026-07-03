@@ -17,12 +17,19 @@
     <div class="stat-value">{{ mods_total }}</div>
     <div class="stat-label">mods downloaded{% if mods_failed %} ({{ mods_failed }} failed to parse){% endif %}</div>
   </div>
+  {% if unified %}
+  <div class="stat">
+    <div class="stat-value">{{ overrides[shards[0]].enabled_count }}</div>
+    <div class="stat-label">mods enabled</div>
+  </div>
+  {% else %}
   {% for shard in shards %}
   <div class="stat">
     <div class="stat-value">{{ overrides[shard].enabled_count }}</div>
     <div class="stat-label">enabled in {{ shard }}</div>
   </div>
   {% endfor %}
+  {% endif %}
   <div class="stat">
     <div class="stat-value">{{ backups_count }}</div>
     <div class="stat-label">backups stored</div>

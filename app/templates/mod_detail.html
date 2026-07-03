@@ -13,10 +13,15 @@
     <tr><th>Parse status</th>
       <td>{% if mod.parse_ok %}<span class="badge ok">ok</span>{% else %}
           <span class="badge err">failed</span> <code>{{ mod.parse_error }}</code>{% endif %}</td></tr>
-    {% for shard in shards %}
-    <tr><th>{{ shard }}</th>
+    {% for shard in field_shards %}
+    <tr><th>{{ 'Enabled' if unified else shard }}</th>
       <td>{% if card.enabled[shard] %}<span class="badge ok">enabled</span>{% else %}
-          <span class="badge muted-badge">disabled</span>{% endif %}</td></tr>
+          <span class="badge muted-badge">disabled</span>{% endif %}
+        {% if unified and not card.synced %}
+        <span class="badge warn"
+              title="The shards currently have different settings for this mod — values shown come from {{ shards[0] }}. Saving from the Mods page re-syncs them.">shards differ</span>
+        {% endif %}
+      </td></tr>
     {% endfor %}
   </table>
 </div>
@@ -33,17 +38,17 @@
   <h2>Configuration options (current values, read-only)</h2>
   <p class="muted">Edit these from the <a href="/mods">Mods</a> page.</p>
   <table class="options-table">
-    <tr><th>Option</th><th>Default</th>{% for shard in shards %}<th>{{ shard }}</th>{% endfor %}</tr>
+    <tr><th>Option</th><th>Default</th>{% for shard in field_shards %}<th>{{ 'Current' if unified else shard }}</th>{% endfor %}</tr>
     {% for row in card.option_rows %}
       {% if row.is_header %}
-      <tr class="opt-section"><td colspan="{{ 2 + shards|length }}">{{ row.option.display_label }}</td></tr>
+      <tr class="opt-section"><td colspan="{{ 2 + field_shards|length }}">{{ row.option.display_label }}</td></tr>
       {% else %}
       <tr>
         <td title="{{ row.option.hover }}">{{ row.option.display_label }}
           {% if row.option.name != row.option.label %}<div class="muted small">{{ row.option.name }}</div>{% endif %}
         </td>
         <td><code>{{ row.option.default if row.option.default is not none else "nil" }}</code></td>
-        {% for shard in shards %}
+        {% for shard in field_shards %}
         {% set f = row.per_shard[shard] %}
         <td>
           {% if f.kind == 'select' %}
