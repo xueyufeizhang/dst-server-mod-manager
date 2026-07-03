@@ -254,10 +254,13 @@ def build_mod_card(
         for s in shards
     )
 
-    known_names = {
-        o.name for o in mod.configuration_options if o.name and not o.is_header
-    }
-    card.num_options = len(known_names)
+    # Named options including pseudo-headers — their keys legitimately appear
+    # in modoverrides.lua (the game writes headers too), so they must not be
+    # reported as "unknown" extras.
+    named_options = {o.name for o in mod.configuration_options if o.name}
+    card.num_options = len(
+        {o.name for o in mod.configuration_options if o.name and not o.is_header}
+    )
 
     for index, option in enumerate(mod.configuration_options):
         row = OptionRowVM(option=option, is_header=option.is_header)
@@ -279,7 +282,7 @@ def build_mod_card(
             extras = {
                 k: v
                 for k, v in entry.configuration_options.items()
-                if k not in known_names
+                if k not in named_options
             }
             if extras:
                 card.extra_options[shard] = extras

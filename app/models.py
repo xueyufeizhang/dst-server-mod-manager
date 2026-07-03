@@ -36,7 +36,15 @@ class ConfigOption:
     @property
     def is_header(self) -> bool:
         # DST convention: options with an empty name are section separators.
-        return self.name == ""
+        if self.name == "":
+            return True
+        # Common mod-author trick (e.g. Epic Healthbar): a named pseudo-option
+        # whose only choice has a blank description is also just a header.
+        # A single choice with a real description stays a normal option.
+        return (
+            len(self.choices) == 1
+            and not (self.choices[0].description or "").strip()
+        )
 
     @property
     def display_label(self) -> str:
