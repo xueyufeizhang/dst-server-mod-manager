@@ -231,6 +231,12 @@ details summary { cursor: pointer; color: #1a66b3; margin-top: 6px; }
 }
 
 /* Misc */
+.help {
+  display: inline-block; width: 15px; height: 15px; line-height: 15px;
+  border-radius: 50%; background: #dbe3ec; color: #5a6b7d;
+  font-size: 11px; font-weight: 700; text-align: center;
+  cursor: help; vertical-align: middle; user-select: none;
+}
 .server-line { margin: 2px 0 8px; }
 .nowrap { white-space: nowrap; }
 .muted { color: #7a8899; }

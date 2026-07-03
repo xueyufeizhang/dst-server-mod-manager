@@ -32,7 +32,7 @@
   <table class="kv-table">
     {% if system.cpu_count %}<tr><th>CPU cores</th><td>{{ system.cpu_count }}
       {% if system.load %} · load average <code>{{ system.load }}</code>
-      <span class="muted small">(1 / 5 / 15 min — busy when it exceeds the core count)</span>{% endif %}</td></tr>{% endif %}
+      <span class="help" title="Average number of processes using or waiting for the CPU over the last 1 / 5 / 15 minutes. The CPU is saturated when this exceeds the core count.">?</span>{% endif %}</td></tr>{% endif %}
     {% if system.uptime %}<tr><th>Host uptime</th><td>{{ system.uptime }}</td></tr>{% endif %}
   </table>
   {% macro meter_row(m) %}
