@@ -236,7 +236,21 @@ details summary { cursor: pointer; color: #1a66b3; margin-top: 6px; }
   border-radius: 50%; background: #dbe3ec; color: #5a6b7d;
   font-size: 11px; font-weight: 700; text-align: center;
   cursor: help; vertical-align: middle; user-select: none;
+  position: relative;
 }
+/* Instant CSS tooltip from data-tip (native title tooltips are slow/flaky). */
+.help::after {
+  content: attr(data-tip);
+  position: absolute; bottom: calc(100% + 8px); left: 50%;
+  transform: translateX(-50%);
+  width: 300px; padding: 8px 11px;
+  background: #182430; color: #dbe3ec;
+  font-size: 12px; font-weight: 400; line-height: 1.5; text-align: left;
+  border-radius: 6px; box-shadow: 0 4px 14px rgba(16, 24, 32, 0.25);
+  opacity: 0; visibility: hidden; transition: opacity 0.12s;
+  pointer-events: none; z-index: 20; white-space: normal;
+}
+.help:hover::after { opacity: 1; visibility: visible; }
 .server-line { margin: 2px 0 8px; }
 .nowrap { white-space: nowrap; }
 .muted { color: #7a8899; }
