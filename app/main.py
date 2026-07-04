@@ -133,6 +133,8 @@ def _config_warnings(cfg: AppConfig, overrides: dict[str, ShardOverrides]) -> li
     warnings: list[str] = []
     if not cfg.dst.mods_path.is_dir():
         warnings.append(f"mods_path does not exist: {cfg.dst.mods_path}")
+    if cfg.dst.local_mods_path is not None and not cfg.dst.local_mods_path.is_dir():
+        warnings.append(f"local_mods_path does not exist: {cfg.dst.local_mods_path}")
     if not cfg.dst.cluster_path.is_dir():
         warnings.append(f"cluster_path does not exist: {cfg.dst.cluster_path}")
     for shard in cfg.dst.shards:
@@ -158,7 +160,15 @@ def _config_warnings(cfg: AppConfig, overrides: dict[str, ShardOverrides]) -> li
 def _safe_scan(cfg: AppConfig, use_cache: bool = True) -> tuple[list[Mod], str]:
     """Scan mods, returning (mods, error_message)."""
     try:
-        return scan_mods(cfg.dst.mods_path, lua_command=cfg.lua_command, use_cache=use_cache), ""
+        return (
+            scan_mods(
+                cfg.dst.mods_path,
+                local_mods_path=cfg.dst.local_mods_path,
+                lua_command=cfg.lua_command,
+                use_cache=use_cache,
+            ),
+            "",
+        )
     except ModsPathError as exc:
         return [], str(exc)
 
@@ -751,26 +761,36 @@ def create_app() -> FastAPI:
         if workshop_id is None:
             return _redirect_flash("/mods", "no workshop id given", "error")
 
-        mods, _ = _safe_scan(cfg)
-        mod = next((m for m in mods if m.workshop_id == workshop_id), None)
-
         session = backups.new_session(f"delete workshop-{workshop_id}")
         notes, errors = _remove_mod_config(workshop_id, session)
 
-        if mod is None:
-            notes.append("no local mod folder found")
+        # Sweep every configured mod root so a mod copied into the local
+        # mods folder doesn't survive (and reappear) after a delete.
+        roots = [cfg.dst.mods_path]
+        if cfg.dst.local_mods_path is not None:
+            roots.append(cfg.dst.local_mods_path)
+        deleted_any = False
+        for root in roots:
+            if not root.is_dir():
+                continue
+            for name in (f"workshop-{workshop_id}", workshop_id):
+                folder = root / name
+                if not folder.is_dir():
+                    continue
+                try:
+                    # Only ever delete a direct child of a configured root.
+                    if folder.resolve().parent != root.resolve():
+                        errors.append(f"refusing to delete {folder}: not directly inside {root}")
+                    else:
+                        shutil.rmtree(folder)
+                        deleted_any = True
+                        notes.append(f"deleted local folder {folder}")
+                except OSError as exc:
+                    errors.append(f"failed to delete {folder.name}: {exc}")
+        if deleted_any:
+            mod_scanner.clear_cache()
         else:
-            folder = mod.path
-            try:
-                # Only ever delete a direct child of mods_path.
-                if folder.resolve().parent != cfg.dst.mods_path.resolve():
-                    errors.append(f"refusing to delete {folder}: not directly inside mods_path")
-                else:
-                    shutil.rmtree(folder)
-                    mod_scanner.clear_cache()
-                    notes.append(f"deleted local folder {folder.name}")
-            except OSError as exc:
-                errors.append(f"failed to delete {folder.name}: {exc}")
+            notes.append("no local mod folder found")
 
         logger.info("delete mod workshop-%s: %s / errors: %s", workshop_id, notes, errors)
         summary = "; ".join(notes) or "nothing to delete"

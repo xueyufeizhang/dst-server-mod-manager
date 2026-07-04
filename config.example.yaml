@@ -21,6 +21,15 @@ dst:
   # (the standard location).
   mods_setup_path: ""
 
+  # Optional: the game's classic <install>/mods folder, when it is NOT the
+  # same directory as mods_path (typical with -ugc_directory setups).
+  # workshop-<id> folders placed there are loaded by the game straight from
+  # disk, without any Workshop download — useful when the server's Workshop
+  # downloads keep timing out. The panel scans this folder too and tags its
+  # mods "local". Empty = off.
+  #   local_mods_path: /home/steam/dstserver/mods
+  local_mods_path: ""
+
   # Shard folder names inside cluster_path.
   shards:
     - Master

@@ -30,21 +30,21 @@
     </label>
     {% endfor %}
     {% endif %}
-    <button type="submit" class="btn primary" name="action" value="add_download"
+    <button type="submit" class="btn primary" name="action" value="add"
+            title="Only register the mod; the DST server downloads it on its next restart">
+      Add only
+    </button>
+    <button type="submit" class="btn" name="action" value="add_download"
             {{ 'disabled' if not steamcmd_found else '' }}
             title="{{ 'Download immediately with steamcmd — may take a minute (longer on its first run)' if steamcmd_found else 'steamcmd not found on this machine' }}">
       Add &amp; download now
     </button>
-    <button type="submit" class="btn" name="action" value="add"
-            title="Only register the mod; the DST server downloads it on its next restart">
-      Add only
-    </button>
   </form>
   <p class="muted small">
     Both write <code>ServerModSetup("&lt;id&gt;")</code> to <code>{{ cfg.dst.mods_setup_path.name }}</code>
-    and enable the mod in the selected shards. “Add &amp; download now” also fetches the mod
-    immediately with steamcmd, so you can configure it right away and restart the server just
-    once. “Add only” leaves the download to the server's next restart.
+    and enable the mod in the selected shards. “Add only” leaves the download to the server's
+    next restart. “Add &amp; download now” also fetches the mod immediately with steamcmd, so
+    you can configure it right away and restart the server just once.
     {% if not steamcmd_found %}
     <br><strong>steamcmd not found</strong> — direct downloads are disabled. Install it
     (e.g. <code>sudo apt install steamcmd</code>) or set <code>steamcmd.command</code> in config.yaml.
@@ -160,9 +160,14 @@
         {% else %}
           <span class="badge err">parse failed</span>
         {% endif %}
+        {% if card.mod.source == 'local' %}
+        <span class="badge info"
+              title="Lives in the local mods folder ({{ cfg.dst.local_mods_path }}) — the game loads this copy straight from disk, no Workshop download involved. It is never updated automatically.">local</span>
+        {% endif %}
         {# The download-list hint is secondary noise on a broken mod — the
-           parse failure is the signal that matters there. #}
-        {% if card.mod.parse_ok and not card.in_setup %}
+           parse failure is the signal that matters there. Local-folder mods
+           are loaded without the download list, so the hint is noise there too. #}
+        {% if card.mod.parse_ok and not card.in_setup and card.mod.source != 'local' %}
         <span class="badge warn"
               title="Downloaded, but missing from dedicated_server_mods_setup.lua — the server will not update it and may remove it at its next restart.">not in download list</span>
         {% endif %}

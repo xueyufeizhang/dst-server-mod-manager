@@ -10,6 +10,7 @@ dst:
   cluster_path: sample_data/cluster/MyDediServer
   mods_path: sample_data/mods
   mods_setup_path: ""   # defaults to sample_data/mods/dedicated_server_mods_setup.lua
+  local_mods_path: ""   # optional classic mods/ folder; its mods get a "local" tag
   shards:
     - Master
     - Caves

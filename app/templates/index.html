@@ -56,6 +56,10 @@
   <h2>Paths</h2>
   <table class="kv-table">
     <tr><th>mods_path</th><td><code>{{ cfg.dst.mods_path }}</code></td></tr>
+    {% if cfg.dst.local_mods_path %}
+    <tr><th>local_mods_path</th><td><code>{{ cfg.dst.local_mods_path }}</code>
+      <span class="muted small">— mods here get the <span class="badge info">local</span> tag</span></td></tr>
+    {% endif %}
     <tr><th>cluster_path</th><td><code>{{ cfg.dst.cluster_path }}</code></td></tr>
     <tr><th>lua interpreter</th><td><code>{{ lua_command or "not found!" }}</code></td></tr>
     <tr><th>steamcmd</th>

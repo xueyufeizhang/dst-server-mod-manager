@@ -35,6 +35,11 @@ class DSTConfig:
     # dedicated_server_mods_setup.lua — the file that tells the dedicated
     # server which Workshop mods to download at boot ("Add mod" writes here).
     mods_setup_path: Path
+    # Optional second scan directory: the game's classic <install>/mods folder.
+    # Mods placed there (workshop-<id> folders) are loaded by the game directly
+    # without any Workshop download; the panel tags them "local" to tell them
+    # apart from mods_path. None = feature off.
+    local_mods_path: Path | None = None
     shards: list[str] = field(default_factory=lambda: ["Master", "Caves"])
     # True (default): the Mods page shows ONE set of controls per mod and
     # saving writes identical settings to every shard — the usual setup.
@@ -151,12 +156,15 @@ def load_config(path: str | Path | None = None) -> AppConfig:
         if mods_setup_raw
         else mods_path / "dedicated_server_mods_setup.lua"
     )
+    local_mods_raw = str(dst_raw.get("local_mods_path") or "").strip()
+    local_mods_path = _resolve_path(local_mods_raw, base) if local_mods_raw else None
 
     return AppConfig(
         dst=DSTConfig(
             cluster_path=_resolve_path(dst_raw["cluster_path"], base),
             mods_path=mods_path,
             mods_setup_path=mods_setup_path,
+            local_mods_path=local_mods_path,
             shards=[s.strip() for s in shards if s.strip()],
             unified_mod_config=bool(dst_raw.get("unified_mod_config", True)),
         ),

@@ -236,7 +236,7 @@ def build_mod_card(
         card.in_setup = mod.workshop_id in setup_ids
     card.short_description = _shorten(mod.description)
     card.search_blob = " ".join(
-        [mod.display_name, mod.folder_name, mod.workshop_id, mod.author]
+        [mod.display_name, mod.folder_name, mod.workshop_id, mod.author, mod.source]
     ).lower()
 
     entries: dict[str, OverrideEntry | None] = {}

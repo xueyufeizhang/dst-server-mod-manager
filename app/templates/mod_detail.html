@@ -7,7 +7,11 @@
 <div class="panel">
   <table class="kv-table">
     <tr><th>Workshop ID</th><td>{{ mod.workshop_id }} (<code>{{ mod.override_key }}</code>)</td></tr>
-    <tr><th>Folder</th><td><code>{{ mod.path }}</code></td></tr>
+    <tr><th>Folder</th><td><code>{{ mod.path }}</code>
+      {% if mod.source == 'local' %}
+      <span class="badge info"
+            title="Lives in the local mods folder — the game loads this copy straight from disk, no Workshop download involved. It is never updated automatically.">local</span>
+      {% endif %}</td></tr>
     <tr><th>Author</th><td>{{ mod.author or "unknown" }}</td></tr>
     <tr><th>Version</th><td>{{ mod.version or "unknown" }}</td></tr>
     <tr><th>Parse status</th>

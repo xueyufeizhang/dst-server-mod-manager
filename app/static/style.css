@@ -98,6 +98,7 @@ a { color: #1a66b3; }
 .badge.err { background: #fbdcdc; color: #8a1f1f; }
 .badge.muted-badge { background: #e8ecf1; color: #5a6b7d; }
 .badge.warn { background: #fcefd0; color: #7a5410; }
+.badge.info { background: #dde9fb; color: #1f4f8f; }
 
 /* Buttons + forms */
 .btn {

@@ -58,6 +58,9 @@ class Mod:
     workshop_id: str
     folder_name: str
     path: Path
+    # "workshop": lives in mods_path (managed by the Workshop download list).
+    # "local": lives in local_mods_path — the game loads it straight from disk.
+    source: str = "workshop"
     parse_ok: bool = False
     parse_error: str = ""
     name: str = ""

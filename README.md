@@ -156,6 +156,13 @@ dst:
 （“Add mod” 功能会写这个文件）；留空则默认为
 `<mods_path>/dedicated_server_mods_setup.lua`，即标准位置。用 `ugc_mods` 布局时需要手动把它指向服务器安装目录下的 `mods/dedicated_server_mods_setup.lua`。
 
+可选项 `dst.local_mods_path` 指向游戏的经典 `<安装目录>/mods` 文件夹（仅当它和
+`mods_path` 不是同一个目录时才需要，典型场景是 `-ugc_directory` 布局）。放在
+这里的 `workshop-<id>` 目录游戏会直接从磁盘加载、完全不经过 Workshop 下载 ——
+当服务器连 Workshop 总是超时时，把 mod 手动拷进去是可靠的兜底方案。面板会
+一并扫描这个目录，并给其中的 mod 打上蓝色 `local` 标签以便区分；同一个 id
+在两边都存在时，按 local 副本显示。
+
 **务必修改 `security.password`。** 相对路径相对于 `config.yaml` 所在目录解析。
 
 运行面板的用户需要对 `Master/`、`Caves/` 目录有写权限（通常直接用运行 DST
