@@ -21,7 +21,7 @@ return {
         },
     },
     ["workshop-661253977"] = {
-        enabled = true,
+        enabled = false,
         configuration_options = {
             amudiao = true,
             baodiao = 1,
