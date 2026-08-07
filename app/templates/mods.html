@@ -130,8 +130,6 @@
     <div class="mod-head">
       <div class="mod-title">
         <a href="/mods/{{ card.mod.workshop_id }}">{{ card.mod.display_name }}</a>
-        <a class="mod-key-link" href="https://steamcommunity.com/sharedfiles/filedetails/?id={{ card.mod.workshop_id }}"
-           target="_blank" rel="noopener">{{ card.mod.override_key }}</a>
         {% if card.mod.parse_ok %}
           <span class="badge ok">parsed</span>
         {% else %}
@@ -180,6 +178,8 @@
     <div class="mod-meta muted">
       by {{ card.mod.author or "unknown" }}
       {% if card.mod.version %} · v{{ card.mod.version }}{% endif %}
+      · <a class="mod-key-link" href="https://steamcommunity.com/sharedfiles/filedetails/?id={{ card.mod.workshop_id }}"
+          target="_blank" rel="noopener">{{ card.mod.override_key }}</a>
     </div>
     {% if card.short_description %}<p class="mod-desc">{{ card.short_description }}</p>{% endif %}
     {% if card.mod.parse_error %}
