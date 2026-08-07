@@ -12,7 +12,7 @@ mod 参数，保存时自动备份并重新生成 `modoverrides.lua`。
 
 - 扫描 `mods_path` 下的 `workshop-<id>` 目录（也兼容 `ugc_mods` 布局的纯数字目录名）
 - **按 Workshop ID / URL 添加新 mod**：自动写入 `dedicated_server_mods_setup.lua`
-  （服务器下次启动时自动下载）并在选定 shard 的 `modoverrides.lua` 中启用；
+  （服务器下次启动时自动下载），并在选定 shard 的 `modoverrides.lua` 中以禁用状态登记；
   未下载完成的 mod 显示在 “Pending download” 区域，可切换启用/移除
 - **直接下载（可选）**：装有 steamcmd 时，可 “Add &amp; download now” 立刻下载 mod，
   马上调参数、只重启一次服务器就全部生效
@@ -263,12 +263,14 @@ Server 页面的 Logs 表格列出每个 shard 的 `server_log.txt`（大小、�
 
 ## 添加新 mod（按 Workshop ID）
 
-Mods 页面顶部的 **Add a mod by Workshop ID**：粘贴 Workshop ID（如 `378160973`）或整个创意工坊 URL（`https://steamcommunity.com/sharedfiles/filedetails/?id=...`），
-勾选要启用的 shard，点击 Add mod。面板会：
+Mods 页面顶部的 **Add a mod by Workshop ID**：粘贴 Workshop ID（如 `378160973`）或整个创意工坊 URL（`https://steamcommunity.com/sharedfiles/filedetails/?id=...`），点击 Add only / Add & download。面板会：
 
 1. 向 `dedicated_server_mods_setup.lua` 追加 `ServerModSetup("<id>")`
    （已存在则跳过；文件中的手写内容和注释原样保留）；
-2. 在选定 shard 的 `modoverrides.lua` 中写入 `enabled = true`（照常先备份）。
+2. 在选定 shard 的 `modoverrides.lua` 中写入 `enabled = false`（照常先备份）。
+
+新添加的 mod 默认不会启用；请在 Mods 页面手动勾选后点击 Save all changes，才会写入
+`enabled = true` 并在服务器重启后生效。
 
 mod 文件要等 **DST 服务器下次重启时由服务器自己下载**，下载完成前它显示在
 “Pending download” 区域——可以照常勾选/取消各 shard 的启用状态，或点 Remove把误加的条目从 modoverrides 和 setup 文件中删掉（已下载到磁盘的 mod 不允许Remove，只能取消勾选，避免误删配置）。下载完成后刷新页面即可看到名称和全部配置项。
@@ -278,7 +280,7 @@ mod 文件要等 **DST 服务器下次重启时由服务器自己下载**，下�
 装了 steamcmd 的机器上（DST 服务器通常本来就有），添加 mod 时可以选
 **Add &amp; download now**：面板用 `steamcmd +login anonymous +workshop_download_item
 322330 <id>` 立刻把 mod 下载进 `mods_path`，你马上就能在页面上调参数，然后
-**只重启一次** 服务器即可让 mod 和参数同时生效——不必先重启下载、改参数、再重启。
+手动启用并保存后，**只重启一次** 服务器即可让 mod 和参数同时生效——不必先重启下载、改参数、再重启。
 
 - **Add only** 则保持传统流程：由 DST 服务器在下次重启时自己下载
 - Pending download 里的 mod 也有 **Download now** 按钮，可以随时补下载

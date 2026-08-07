@@ -86,7 +86,7 @@
           Download now
         </button>
         {% else %}
-        <button type="submit" class="btn small" formaction="/mods/add" formmethod="post"
+        <button type="submit" class="btn small" formaction="/mods/add?action=readd" formmethod="post"
                 name="workshop_input" value="{{ p.workshop_id }}"
                 title="Put ServerModSetup(&quot;{{ p.workshop_id }}&quot;) back into {{ cfg.dst.mods_setup_path.name }} so the server downloads this mod again">
           Re-add to download list
@@ -161,7 +161,7 @@
         </label>
         {% endfor %}
         {% if card.mod.parse_ok and not card.in_setup and card.mod.source != 'local' %}
-        <button type="submit" class="btn small" formaction="/mods/add" formmethod="post"
+        <button type="submit" class="btn small" formaction="/mods/add?action=readd" formmethod="post"
                 name="workshop_input" value="{{ card.mod.workshop_id }}"
                 title="Put ServerModSetup(&quot;{{ card.mod.workshop_id }}&quot;) back into {{ cfg.dst.mods_setup_path.name }} so the server downloads this mod again">
           Re-add to download list

@@ -616,22 +616,26 @@ def create_app() -> FastAPI:
     @app.post("/mods/add")
     async def add_mod(request: Request) -> RedirectResponse:
         form = await request.form()
+        action = str(form.get("action") or request.query_params.get("action") or "add")
+        readd_only = action == "readd"
         raw = str(form.get("workshop_input") or "")
         workshop_id = _extract_workshop_id(raw)
         if workshop_id is None:
             return _redirect_flash(
                 "/mods", f"could not extract a workshop id from {raw!r}", "error"
             )
-        selected = [str(s) for s in form.getlist("add_shards")]
-        if not selected:
-            # Adding a mod always enables it in every shard. The UI used to
-            # expose this as a checked-by-default option, but there is no
-            # useful choice to make here.
-            selected = list(cfg.dst.shards)
-        elif "__all__" in selected:  # backward compatibility with old forms
-            selected = list(cfg.dst.shards)
-        else:
-            selected = [s for s in selected if s in cfg.dst.shards]
+        selected: list[str] = []
+        if not readd_only:
+            selected = [str(s) for s in form.getlist("add_shards")]
+            if not selected:
+                # A newly added mod starts disabled in every shard. Keep the
+                # existing all-shards behavior for the initial config entry;
+                # enabling is an explicit save from the Mods page.
+                selected = list(cfg.dst.shards)
+            elif "__all__" in selected:  # backward compatibility with old forms
+                selected = list(cfg.dst.shards)
+            else:
+                selected = [s for s in selected if s in cfg.dst.shards]
         key = f"workshop-{workshop_id}"
 
         notes: list[str] = []
@@ -650,33 +654,36 @@ def create_app() -> FastAPI:
         except OSError as exc:
             errors.append(f"{setup_path.name}: {exc}")
 
-        # 2. Enable it in the selected shards' modoverrides.lua.
-        for shard in selected:
-            overrides_path = cfg.dst.overrides_path(shard)
-            current = load_shard_overrides(shard, overrides_path, lua_command=cfg.lua_command)
-            if not current.ok:
-                errors.append(f"{shard}: modoverrides.lua unreadable ({current.error})")
-                continue
-            entries = dict(current.entries)
-            old = entries.get(key)
-            entries[key] = OverrideEntry(
-                enabled=True,
-                configuration_options=dict(old.configuration_options) if old else {},
-            )
-            try:
-                if _write_overrides_if_changed(session, shard, overrides_path, entries):
-                    notes.append(f"enabled in {shard}")
-                else:
-                    notes.append(f"already enabled in {shard}")
-            except (OSError, BackupError) as exc:
-                errors.append(f"{shard}: {exc}")
-                continue
+        # 2. A normal add records the mod as disabled in the selected shards.
+        # Re-add is deliberately setup-only: preserve every existing
+        # modoverrides.lua entry and its enabled state.
+        if not readd_only:
+            for shard in selected:
+                overrides_path = cfg.dst.overrides_path(shard)
+                current = load_shard_overrides(shard, overrides_path, lua_command=cfg.lua_command)
+                if not current.ok:
+                    errors.append(f"{shard}: modoverrides.lua unreadable ({current.error})")
+                    continue
+                entries = dict(current.entries)
+                old = entries.get(key)
+                entries[key] = OverrideEntry(
+                    enabled=False,
+                    configuration_options=dict(old.configuration_options) if old else {},
+                )
+                try:
+                    if _write_overrides_if_changed(session, shard, overrides_path, entries):
+                        notes.append(f"disabled in {shard}")
+                    else:
+                        notes.append(f"already disabled in {shard}")
+                except (OSError, BackupError) as exc:
+                    errors.append(f"{shard}: {exc}")
+                    continue
 
         # Optional immediate download (runs in the background; the mods page
         # polls its progress), so options can be configured right away and
         # one restart applies mod + settings together.
         download_started = False
-        if str(form.get("action") or "add") == "add_download" and not errors:
+        if action == "add_download" and not errors:
             download_started, start_error = _start_download(workshop_id)
             if download_started:
                 notes.append("download started")
@@ -699,7 +706,8 @@ def create_app() -> FastAPI:
             return _redirect_flash(
                 "/mods", f"{key}: {'; '.join(notes)}. Errors: {'; '.join(errors)}", "error"
             )
-        return _redirect_flash("/mods", f"Added {key} ({'; '.join(notes)}). {tail}")
+        verb = "Re-added" if readd_only else "Added"
+        return _redirect_flash("/mods", f"{verb} {key} ({'; '.join(notes)}). {tail}")
 
     @app.post("/mods/download")
     async def download_mod_route(request: Request) -> RedirectResponse:
