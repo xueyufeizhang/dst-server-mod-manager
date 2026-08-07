@@ -162,6 +162,13 @@
           {{ 'Enabled' if unified else shard }}
         </label>
         {% endfor %}
+        {% if card.mod.parse_ok and not card.in_setup and card.mod.source != 'local' %}
+        <button type="submit" class="btn small" formaction="/mods/add" formmethod="post"
+                name="workshop_input" value="{{ card.mod.workshop_id }}"
+                title="Put ServerModSetup(&quot;{{ card.mod.workshop_id }}&quot;) back into {{ cfg.dst.mods_setup_path.name }} so the server downloads this mod again">
+          Re-add to download list
+        </button>
+        {% endif %}
         <button type="submit" class="btn danger small" formaction="/mods/delete" formmethod="post"
                 name="workshop_id" value="{{ card.mod.workshop_id }}"
                 title="Delete the local mod folder AND every trace of its configuration"
