@@ -1,7 +1,9 @@
 {% extends "base.html" %}
 {% block title %}{{ mod.display_name }} · DST Mod Manager{% endblock %}
 {% block content %}
-<p><a href="/mods">&larr; back to mods</a></p>
+<p class="breadcrumb">
+  <a class="back-link" href="/mods"><span aria-hidden="true">←</span> Back to mods</a>
+</p>
 <h1>{{ mod.display_name }}</h1>
 
 <div class="panel">
@@ -10,7 +12,7 @@
     <tr><th>Folder</th><td><code>{{ mod.path }}</code>
       {% if mod.source == 'local' %}
       <span class="badge info"
-            title="Lives in the local mods folder — the game loads this copy straight from disk, no Workshop download involved. It is never updated automatically.">local</span>
+            title="Loaded from the local mods folder; not updated by Workshop.">local</span>
       {% endif %}</td></tr>
     <tr><th>Author</th><td>{{ mod.author or "unknown" }}</td></tr>
     <tr><th>Version</th><td>{{ mod.version or "unknown" }}</td></tr>
@@ -39,8 +41,8 @@
 
 {% if card.option_rows %}
 <div class="panel">
-  <h2>Configuration options (current values, read-only)</h2>
-  <p class="muted">Edit these from the <a href="/mods">Mods</a> page.</p>
+  <h2>Configuration options</h2>
+  <p class="muted small">Edit on the <a href="/mods">Mods</a> page.</p>
   <table class="options-table">
     <tr><th>Option</th><th>Default</th>{% for shard in field_shards %}<th>{{ 'Current' if unified else shard }}</th>{% endfor %}</tr>
     {% for row in card.option_rows %}

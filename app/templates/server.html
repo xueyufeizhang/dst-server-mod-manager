@@ -28,7 +28,7 @@
 </div>
 
 <div class="panel">
-  <h2>System status <span class="muted small">— {{ system.hostname }} · {{ system.now }} (reload the page to refresh)</span></h2>
+  <h2>System status <span class="muted small">— {{ system.hostname }} · {{ system.now }}</span></h2>
   <table class="kv-table">
     {% if system.cpu_count %}<tr><th>CPU cores</th><td>{{ system.cpu_count }}
       {% if system.load %} · load average <code>{{ system.load }}</code>
@@ -53,9 +53,9 @@
 </div>
 
 <div class="panel">
-  <h2>Cluster configuration <span class="muted small">— read-only</span></h2>
+  <h2>Cluster configuration</h2>
   {% if not cluster.cluster.exists %}
-  <p class="muted">cluster.ini not found at <code>{{ cluster.cluster.path }}</code>.</p>
+  <p class="muted">cluster.ini not found: <code>{{ cluster.cluster.path }}</code></p>
   {% else %}
   {% if cluster.cluster.error %}<p class="error-text">{{ cluster.cluster.error }}</p>{% endif %}
   <table class="kv-table">
@@ -67,9 +67,14 @@
           {% else %}<span class="badge err">cluster_token.txt missing</span>{% endif %}</td></tr>
   </table>
   {% if cluster.cluster.raw_masked %}
-  <details>
-    <summary>View cluster.ini (sensitive values masked)</summary>
-    <pre class="wrap">{{ cluster.cluster.raw_masked }}</pre>
+  <details class="config-details" data-raw-url="/server/config/raw/cluster.ini">
+    <summary class="config-summary">
+      <span>View cluster.ini</span>
+      <button class="secret-toggle" type="button" aria-label="Show sensitive values" aria-pressed="false" title="Show sensitive values">
+        <svg class="eye-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-5.5 9.5-5.5 9.5 5.5 9.5 5.5-3.5 5.5-9.5 5.5S2.5 12 2.5 12Z"></path><circle cx="12" cy="12" r="2.5"></circle></svg>
+      </button>
+    </summary>
+    <pre class="wrap masked-config">{{ cluster.cluster.raw_masked }}</pre>
   </details>
   {% endif %}
   {% endif %}
@@ -79,7 +84,7 @@
 <div class="panel">
   <h2>{{ shard.title }}</h2>
   {% if not shard.exists %}
-  <p class="muted">not found at <code>{{ shard.path }}</code></p>
+  <p class="muted">server.ini not found: <code>{{ shard.path }}</code></p>
   {% else %}
   {% if shard.error %}<p class="error-text">{{ shard.error }}</p>{% endif %}
   {% if shard.summary %}
@@ -90,9 +95,14 @@
   </table>
   {% endif %}
   {% if shard.raw_masked %}
-  <details>
-    <summary>View {{ shard.title }} (sensitive values masked)</summary>
-    <pre class="wrap">{{ shard.raw_masked }}</pre>
+  <details class="config-details" data-raw-url="/server/config/raw/{{ shard.title }}">
+    <summary class="config-summary">
+      <span>View {{ shard.title }}</span>
+      <button class="secret-toggle" type="button" aria-label="Show sensitive values" aria-pressed="false" title="Show sensitive values">
+        <svg class="eye-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-5.5 9.5-5.5 9.5 5.5 9.5 5.5-3.5 5.5-9.5 5.5S2.5 12 2.5 12Z"></path><circle cx="12" cy="12" r="2.5"></circle></svg>
+      </button>
+    </summary>
+    <pre class="wrap masked-config">{{ shard.raw_masked }}</pre>
   </details>
   {% endif %}
   {% endif %}

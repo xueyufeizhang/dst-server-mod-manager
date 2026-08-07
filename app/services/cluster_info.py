@@ -1,8 +1,9 @@
 """Read cluster.ini / server.ini for display on the Server page.
 
 Read-only: this panel never writes these files. Values whose key looks
-sensitive (password / token / key) are masked before anything reaches the
-browser, including the raw-file view.
+sensitive (password / token / key) are masked in the normal view. The raw
+content is kept server-side and is only returned by the authenticated,
+explicit reveal action.
 """
 
 from __future__ import annotations

@@ -59,6 +59,14 @@ window.addEventListener("beforeunload", function (e) {
       update();
     });
   });
+
+  document.querySelectorAll(".file-details").forEach(function (details) {
+    details.addEventListener("toggle", function () {
+      if (!details.open) return;
+      var area = details.querySelector("textarea");
+      if (area) fit(area);
+    });
+  });
 })();
 
 // Client-side search filter for the mods list. Each .mod-card carries a
@@ -71,6 +79,55 @@ window.addEventListener("beforeunload", function (e) {
     document.querySelectorAll(".mod-card").forEach(function (card) {
       var hit = !q || (card.dataset.search || "").indexOf(q) !== -1;
       card.style.display = hit ? "" : "none";
+    });
+  });
+})();
+
+// Server config viewer: keep sensitive values masked by default and fetch
+// the raw file only after the signed-in user explicitly clicks the eye.
+(function () {
+  document.querySelectorAll(".config-details[data-raw-url]").forEach(function (block) {
+    var toggle = block.querySelector(".secret-toggle");
+    var content = block.querySelector(".masked-config");
+    if (!toggle || !content) return;
+
+    var maskedText = content.textContent || "";
+    var rawText = null;
+
+    function setRevealed(revealed) {
+      content.textContent = revealed ? rawText : maskedText;
+      block.classList.toggle("config-revealed", revealed);
+      toggle.setAttribute("aria-pressed", revealed ? "true" : "false");
+      toggle.setAttribute("aria-label", revealed ? "Hide sensitive values" : "Show sensitive values");
+      toggle.title = revealed ? "Hide sensitive values" : "Show sensitive values";
+    }
+
+    toggle.addEventListener("click", function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      block.open = true;
+
+      if (rawText !== null) {
+        setRevealed(!block.classList.contains("config-revealed"));
+        return;
+      }
+
+      toggle.disabled = true;
+      fetch(block.dataset.rawUrl, { headers: { Accept: "text/plain" } })
+        .then(function (response) {
+          if (!response.ok) throw new Error("Could not load the raw config file");
+          return response.text();
+        })
+        .then(function (text) {
+          rawText = text;
+          setRevealed(true);
+        })
+        .catch(function () {
+          toggle.title = "Could not load sensitive values";
+        })
+        .finally(function () {
+          toggle.disabled = false;
+        });
     });
   });
 })();

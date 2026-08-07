@@ -15,21 +15,10 @@
 {% endfor %}
 
 <div class="panel add-panel">
-  <h2>Add a mod by Workshop ID</h2>
+  <h2>Add mod</h2>
   <form method="post" action="/mods/add" class="add-form">
     <input type="text" name="workshop_input" required autocomplete="off"
            placeholder="Workshop ID (e.g. 378160973) or steamcommunity.com workshop URL">
-    {% if unified %}
-    <label class="toggle">
-      <input type="checkbox" name="add_shards" value="__all__" checked> enable
-    </label>
-    {% else %}
-    {% for shard in shards %}
-    <label class="toggle">
-      <input type="checkbox" name="add_shards" value="{{ shard }}" checked> enable in {{ shard }}
-    </label>
-    {% endfor %}
-    {% endif %}
     <button type="submit" class="btn primary" name="action" value="add"
             title="Only register the mod; the DST server downloads it on its next restart">
       Add only
@@ -37,19 +26,12 @@
     <button type="submit" class="btn" name="action" value="add_download"
             {{ 'disabled' if not steamcmd_found else '' }}
             title="{{ 'Download immediately with steamcmd — may take a minute (longer on its first run)' if steamcmd_found else 'steamcmd not found on this machine' }}">
-      Add &amp; download now
+      Add &amp; download
     </button>
   </form>
-  <p class="muted small">
-    Both write <code>ServerModSetup("&lt;id&gt;")</code> to <code>{{ cfg.dst.mods_setup_path.name }}</code>
-    and enable the mod in the selected shards. “Add only” leaves the download to the server's
-    next restart. “Add &amp; download now” also fetches the mod immediately with steamcmd, so
-    you can configure it right away and restart the server just once.
-    {% if not steamcmd_found %}
-    <br><strong>steamcmd not found</strong> — direct downloads are disabled. Install it
-    (e.g. <code>sudo apt install steamcmd</code>) or set <code>steamcmd.command</code> in config.yaml.
-    {% endif %}
-  </p>
+  {% if not steamcmd_found %}
+  <p class="muted small"><strong>steamcmd not found</strong> · direct download disabled.</p>
+  {% endif %}
 </div>
 
 <div id="download-status" class="panel dl-panel" style="display:none">
@@ -75,7 +57,8 @@
     <input type="hidden" name="mod_ids" value="{{ p.workshop_id }}">
     <div class="mod-head">
       <div class="mod-title">
-        {{ p.override_key }}
+        <a class="mod-key-link" href="https://steamcommunity.com/sharedfiles/filedetails/?id={{ p.workshop_id }}"
+           target="_blank" rel="noopener">{{ p.override_key }}</a>
         <span class="badge muted-badge">not downloaded yet</span>
         {% if not p.in_setup %}
         <span class="badge warn"
@@ -85,8 +68,6 @@
         <span class="badge warn"
               title="The shards currently have different enabled states for this mod — saving will apply the same state to all of them.">shards differ</span>
         {% endif %}
-        <a class="muted small" href="https://steamcommunity.com/sharedfiles/filedetails/?id={{ p.workshop_id }}"
-           target="_blank" rel="noopener">workshop page ↗</a>
       </div>
       <div class="shard-toggles">
         {% for shard in field_shards %}
@@ -120,29 +101,24 @@
     </div>
     <p class="muted small">
       {% if p.in_setup and p.in_overrides %}
-      Listed in the download list and modoverrides.lua but no mod folder found — restart the
-      DST server to download it, or Remove the entry if it was added by mistake.
+      In download list and overrides · no local folder · restart DST to download.
       {% elif p.in_setup %}
-      Listed in dedicated_server_mods_setup.lua only — the server will download it, but it is
-      not enabled in any shard yet. Tick a shard and Save to enable it, or Remove it from the
-      download list.
+      In download list · not enabled on any shard.
       {% else %}
-      Referenced by modoverrides.lua but missing from dedicated_server_mods_setup.lua — the
-      server will <strong>not</strong> download it. Click “Re-add to download list” to make it
-      downloadable again (shard settings are kept), or Remove the leftover entry.
+      In overrides only · not in download list.
       {% endif %}
-      {% for shard in shards %}{% if p.option_counts[shard] %}{{ shard }}: {{ p.option_counts[shard] }} saved option(s) preserved. {% endif %}{% endfor %}
+      {% for shard in shards %}{% if p.option_counts[shard] %} {{ shard }}: {{ p.option_counts[shard] }} saved option(s).{% endif %}{% endfor %}
     </p>
   </div>
   {% endmacro %}
 
   {% if pending %}
-  <h2 class="section-h">Pending download ({{ pending|length }})</h2>
+  <h2 class="section-h">Pending ({{ pending|length }})</h2>
   {% for p in pending %}{{ not_downloaded_card(p) }}{% endfor %}
   {% endif %}
 
   {% if orphaned %}
-  <h2 class="section-h">Orphaned entries — won't be downloaded ({{ orphaned|length }})</h2>
+  <h2 class="section-h">Orphaned ({{ orphaned|length }})</h2>
   {% for p in orphaned %}{{ not_downloaded_card(p) }}{% endfor %}
   {% endif %}
 
@@ -154,7 +130,8 @@
     <div class="mod-head">
       <div class="mod-title">
         <a href="/mods/{{ card.mod.workshop_id }}">{{ card.mod.display_name }}</a>
-        <span class="muted">{{ card.mod.override_key }}</span>
+        <a class="mod-key-link" href="https://steamcommunity.com/sharedfiles/filedetails/?id={{ card.mod.workshop_id }}"
+           target="_blank" rel="noopener">{{ card.mod.override_key }}</a>
         {% if card.mod.parse_ok %}
           <span class="badge ok">parsed</span>
         {% else %}
@@ -188,7 +165,7 @@
         <button type="submit" class="btn danger small" formaction="/mods/delete" formmethod="post"
                 name="workshop_id" value="{{ card.mod.workshop_id }}"
                 title="Delete the local mod folder AND every trace of its configuration"
-                onclick="return confirm('Delete {{ card.mod.override_key }} completely?\n\nThis removes the local mod folder, its entries in every shard, and its download-list line.\n\nSettings are backed up first; the mod files can be re-downloaded from the Workshop.');">
+              onclick="return confirm('Delete {{ card.mod.override_key }}?\n\nLocal files and configuration will be removed. A backup is created first.');">
           Delete
         </button>
       </div>
@@ -196,7 +173,6 @@
     <div class="mod-meta muted">
       by {{ card.mod.author or "unknown" }}
       {% if card.mod.version %} · v{{ card.mod.version }}{% endif %}
-      · folder <code>{{ card.mod.folder_name }}</code>
     </div>
     {% if card.short_description %}<p class="mod-desc">{{ card.short_description }}</p>{% endif %}
     {% if card.mod.parse_error %}
@@ -205,7 +181,7 @@
 
     {% if card.option_rows %}
     <details>
-      <summary>Configuration ({{ card.num_options }} option{{ 's' if card.num_options != 1 else '' }})</summary>
+      <summary class="config-summary">Configuration ({{ card.num_options }} option{{ 's' if card.num_options != 1 else '' }})</summary>
       <div class="options-actions">
         {% if shards|length > 1 and not unified %}
         <button type="button" class="btn small copy-shard" data-source="{{ shards[0] }}"
@@ -267,8 +243,7 @@
   {% if cards %}
   <div class="toolbar bottom">
     <button type="submit" class="btn primary">Save all changes</button>
-    <span class="muted">Saving rewrites modoverrides.lua for every shard (old files are backed up first).
-      A DST server restart is required for changes to take effect.</span>
+    <span class="muted small">Writes all shard overrides. Restart DST to apply.</span>
   </div>
   {% endif %}
 </form>

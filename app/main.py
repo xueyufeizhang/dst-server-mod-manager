@@ -25,7 +25,7 @@ from typing import Any
 from urllib.parse import quote, urlencode
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -623,7 +623,12 @@ def create_app() -> FastAPI:
                 "/mods", f"could not extract a workshop id from {raw!r}", "error"
             )
         selected = [str(s) for s in form.getlist("add_shards")]
-        if "__all__" in selected:  # unified mode: one checkbox = every shard
+        if not selected:
+            # Adding a mod always enables it in every shard. The UI used to
+            # expose this as a checked-by-default option, but there is no
+            # useful choice to make here.
+            selected = list(cfg.dst.shards)
+        elif "__all__" in selected:  # backward compatibility with old forms
             selected = list(cfg.dst.shards)
         else:
             selected = [s for s in selected if s in cfg.dst.shards]
@@ -1043,6 +1048,25 @@ def create_app() -> FastAPI:
             "logs": logs,
             "last_command": app.state.last_command,
         })
+
+    @app.get("/server/config/raw/{target:path}", response_class=PlainTextResponse)
+    def server_config_raw(target: str) -> PlainTextResponse:
+        """Return one raw INI file only after an explicit authenticated reveal."""
+        if target == "cluster.ini":
+            path = cfg.dst.cluster_path / "cluster.ini"
+        elif target.endswith("/server.ini"):
+            shard = target[: -len("/server.ini")]
+            if shard not in cfg.dst.shards:
+                raise HTTPException(status_code=404, detail="unknown shard")
+            path = cfg.dst.shard_dir(shard) / "server.ini"
+        else:
+            raise HTTPException(status_code=404, detail="unknown config file")
+        try:
+            return PlainTextResponse(path.read_text(encoding="utf-8", errors="replace"))
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail="config file not found") from exc
+        except OSError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     @app.post("/server/run")
     async def server_run(request: Request) -> RedirectResponse:

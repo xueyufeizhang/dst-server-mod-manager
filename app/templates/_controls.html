@@ -33,9 +33,7 @@
   </form>
   {% endif %}
   {% if not (cfg.server.start_command or cfg.server.stop_command or cfg.server.restart_command or cfg.server.status_command) %}
-  <p class="muted">No control commands configured — set <code>start_command</code> /
-    <code>stop_command</code> / <code>restart_command</code> / <code>status_command</code>
-    in config.yaml (see the README for the systemd + sudoers setup).</p>
+  <p class="muted">No server commands configured. Set them in <code>config.yaml</code>.</p>
   {% endif %}
 </div>
 {% endmacro %}

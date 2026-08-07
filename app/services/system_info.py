@@ -145,7 +145,7 @@ def gather(paths: list[Path]) -> SystemInfo:
             continue
         disks.append(
             Meter(
-                label=f"Disk — {path}",
+                label="Disk",
                 detail=(
                     f"{human_bytes(usage.used)} used / {human_bytes(usage.total)} total "
                     f"— {human_bytes(usage.free)} free"

@@ -38,7 +38,10 @@
 
 {% from "_controls.html" import control_buttons, command_results %}
 <div class="panel">
-  <h2>Server <span class="muted small">— <a href="/server">details →</a></span></h2>
+  <div class="panel-title">
+    <h2>Server</h2>
+    <a class="panel-action" href="/server">Details <span aria-hidden="true">→</span></a>
+  </div>
   {% if cluster_name %}
   <p class="server-line">
     <strong>{{ cluster_name }}</strong>
@@ -58,13 +61,13 @@
     <tr><th>mods_path</th><td><code>{{ cfg.dst.mods_path }}</code></td></tr>
     {% if cfg.dst.local_mods_path %}
     <tr><th>local_mods_path</th><td><code>{{ cfg.dst.local_mods_path }}</code>
-      <span class="muted small">— mods here get the <span class="badge info">local</span> tag</span></td></tr>
+      <span class="muted small">· <span class="badge info">local</span></span></td></tr>
     {% endif %}
     <tr><th>cluster_path</th><td><code>{{ cfg.dst.cluster_path }}</code></td></tr>
     <tr><th>lua interpreter</th><td><code>{{ lua_command or "not found!" }}</code></td></tr>
     <tr><th>steamcmd</th>
       <td>{% if steamcmd_command %}<code>{{ steamcmd_command }}</code>
-          {% else %}<span class="muted">not found — “download now” is disabled (optional)</span>{% endif %}</td></tr>
+          {% else %}<span class="muted">not found · downloads disabled</span>{% endif %}</td></tr>
     {% for shard in shards %}
     <tr>
       <th>{{ shard }}</th>

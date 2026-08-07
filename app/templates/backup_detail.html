@@ -1,7 +1,9 @@
 {% extends "base.html" %}
 {% block title %}Backup {{ session.session_id }} · DST Mod Manager{% endblock %}
 {% block content %}
-<p><a href="/backups">&larr; back to backups</a></p>
+<p class="breadcrumb">
+  <a class="back-link" href="/backups"><span aria-hidden="true">←</span> Back to backups</a>
+</p>
 <h1>Backup {{ session.session_id }}</h1>
 
 <div class="panel">
@@ -14,11 +16,7 @@
 
   {% if session.files|length > 1 %}
   <p class="muted small">
-    This operation changed {{ session.files|length }} files together — <strong>Restore</strong>
-    puts all of them back at once. To restore a single file, use the button next to its diff
-    below (note: partially restoring an add/remove operation leaves the other files as they
-    are, e.g. restoring only ModSetup keeps the mod's modoverrides entries, which then show
-    under “Orphaned entries” on the Mods page).
+    Contains {{ session.files|length }} files. Restore all above or one file below.
   </p>
   {% endif %}
   <div class="actions">
@@ -36,12 +34,7 @@
   </div>
 </div>
 
-<h2>Changes made by this operation</h2>
-<p class="muted small">
-  Each diff compares this backup (the file <em>before</em> the operation) with the file's next
-  recorded state — the next backup that contains it, or the current live file for the most
-  recent record. Lines starting with <code>-</code> were removed by the operation, <code>+</code> were added.
-</p>
+<h2>Changes</h2>
 
 {% for d in diffs %}
 <div class="panel">
@@ -51,13 +44,13 @@
           onsubmit="return confirm('Restore only {{ d.key }} from backup {{ session.session_id }}?\nThe current file will be backed up first.');">
       <input type="hidden" name="session_id" value="{{ session.session_id }}">
       <input type="hidden" name="keys" value="{{ d.key }}">
-      <button type="submit" class="btn small">Restore {{ d.key }}</button>
+    <button type="submit" class="btn small">Restore</button>
     </form>
   </div>
   {% if d.lines %}
   <div class="diff">{% for cls, line in d.lines %}<div class="dl {{ cls }}">{{ line }}</div>{% endfor %}</div>
   {% else %}
-  <p class="muted">No differences — this operation did not change this file.</p>
+  <p class="muted">No changes.</p>
   {% endif %}
   <details>
     <summary>View full backup content</summary>
