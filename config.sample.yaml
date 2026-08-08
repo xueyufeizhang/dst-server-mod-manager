@@ -28,6 +28,16 @@ server:
   peer_name: "CN Server"
   peer_status_command: "echo 'pretend peer status: inactive'"
 
+remote_server:
+  name: "CN Server"
+  host: ""
+  user: "dst"
+  port: 22
+  start_command: ""
+  stop_command: ""
+  restart_command: ""
+  status_command: ""
+
 security:
   enable_basic_auth: true
   username: admin

@@ -1,47 +1,55 @@
 {# Shared server-control widgets, used by the dashboard and the Server page. #}
 
-{% macro control_buttons(cfg, next_url) %}
+{% macro control_buttons(server, next_url, target="eu", configured=true) %}
+{% if configured %}
 <div class="control-buttons">
-  {% if cfg.server.start_command %}
+  {% if server.start_command %}
   <form method="post" action="/server/run" class="inline">
     <input type="hidden" name="action" value="start">
+    <input type="hidden" name="target" value="{{ target }}">
     <input type="hidden" name="next" value="{{ next_url }}">
     <button type="submit" class="btn success">Start</button>
   </form>
   {% endif %}
-  {% if cfg.server.stop_command %}
+  {% if server.stop_command %}
   <form method="post" action="/server/run" class="inline"
         data-confirm-title="Stop server?"
         data-confirm-message="The DST server will stop and connected players will be disconnected."
         data-confirm-label="Stop server"
         data-confirm-tone="danger">
     <input type="hidden" name="action" value="stop">
+    <input type="hidden" name="target" value="{{ target }}">
     <input type="hidden" name="next" value="{{ next_url }}">
     <button type="submit" class="btn danger">Stop</button>
   </form>
   {% endif %}
-  {% if cfg.server.restart_command %}
+  {% if server.restart_command %}
   <form method="post" action="/server/run" class="inline"
         data-confirm-title="Restart server?"
         data-confirm-message="The DST server will briefly go offline while it restarts."
         data-confirm-label="Restart server"
         data-confirm-tone="danger">
     <input type="hidden" name="action" value="restart">
+    <input type="hidden" name="target" value="{{ target }}">
     <input type="hidden" name="next" value="{{ next_url }}">
     <button type="submit" class="btn danger">Restart</button>
   </form>
   {% endif %}
-  {% if cfg.server.status_command %}
+  {% if server.status_command %}
   <form method="post" action="/server/run" class="inline">
     <input type="hidden" name="action" value="status">
+    <input type="hidden" name="target" value="{{ target }}">
     <input type="hidden" name="next" value="{{ next_url }}">
     <button type="submit" class="btn">Check status</button>
   </form>
   {% endif %}
-  {% if not (cfg.server.start_command or cfg.server.stop_command or cfg.server.restart_command or cfg.server.status_command) %}
-  <p class="muted">No server commands configured. Set them in <code>config.yaml</code>.</p>
+  {% if not (server.start_command or server.stop_command or server.restart_command or server.status_command) %}
+  <p class="muted">No server commands configured.</p>
   {% endif %}
 </div>
+{% else %}
+<p class="muted remote-control-unconfigured">Remote control is not configured.</p>
+{% endif %}
 {% endmacro %}
 
 {% macro command_results(last_command, compact_status=false) %}

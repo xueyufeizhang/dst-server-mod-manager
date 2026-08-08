@@ -279,6 +279,34 @@ server:
 `mixed`，或者 SSH/状态检查失败，操作都会被拒绝。这样在无法确认 CN 状态时会
 保持安全，不会误启动 EU。
 
+### CN 服务器远程控制
+
+Panel 只需要部署在 EU。CN 不需要安装第二个 Panel，EU 通过 SSH 提供 CN 的
+Status / Start / Stop / Restart 控制。在 `config.yaml` 中添加：
+
+```yaml
+remote_server:
+  name: "CN Server"
+  host: "cn-server"       # CN 的 IP、域名或 EU 上的 SSH alias
+  user: "dst"
+  port: 22
+  start_command: "sudo /usr/bin/systemctl start dst-master dst-caves"
+  stop_command: "sudo /usr/bin/systemctl stop dst-master dst-caves"
+  restart_command: "sudo /usr/bin/systemctl restart dst-master dst-caves"
+  status_command: "/usr/bin/systemctl is-active dst-master dst-caves"
+```
+
+Panel 会以运行用户（例如 `dst`）执行 SSH。先在 EU 上验证：
+
+```bash
+sudo -u dst -H ssh -o BatchMode=yes -o ConnectTimeout=10 cn-server \
+  "/usr/bin/systemctl is-active dst-master dst-caves"
+```
+
+`remote_server` 只配置生命周期命令，不会让 CN 暴露 Mods、Files、Backups 或
+Cluster 页面。配置完成后，Dashboard 的 CN 卡片和 Server 页的 CN 标签会从
+`Not configured` 变为可用的 SSH control。
+
 ## 查看服务器日志
 
 Server 页面的 Logs 表格列出每个 shard 的 `server_log.txt`（大小、修改时间），

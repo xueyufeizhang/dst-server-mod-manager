@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import subprocess
 from datetime import datetime
+from shlex import quote
 
 from app.models import CommandResult
 
@@ -34,6 +35,54 @@ def run_command(command: str, timeout: float = COMMAND_TIMEOUT) -> CommandResult
         return result
     except OSError as exc:
         result.error = f"failed to run command: {exc}"
+        return result
+
+    result.exit_code = proc.returncode
+    result.stdout = proc.stdout.strip()
+    result.stderr = proc.stderr.strip()
+    result.ok = proc.returncode == 0
+    if not result.ok and not result.stderr and not result.stdout:
+        result.error = f"command exited with code {proc.returncode}"
+    return result
+
+
+def run_remote_command(
+    host: str,
+    user: str,
+    port: int,
+    command: str,
+    timeout: float = COMMAND_TIMEOUT,
+) -> CommandResult:
+    """Run one configured command on a remote host through non-interactive SSH."""
+    target = f"{user}@{host}" if user else host
+    args = [
+        "ssh",
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ConnectTimeout=10",
+        "-p",
+        str(port),
+        target,
+        command,
+    ]
+    display = " ".join(quote(part) for part in args)
+    result = CommandResult(command=display, ran_at=datetime.now())
+    if not host.strip() or not command.strip():
+        result.error = "remote host or command is not configured"
+        return result
+    try:
+        proc = subprocess.run(
+            args,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired:
+        result.error = f"command timed out after {timeout:.0f}s"
+        return result
+    except OSError as exc:
+        result.error = f"failed to run remote command: {exc}"
         return result
 
     result.exit_code = proc.returncode

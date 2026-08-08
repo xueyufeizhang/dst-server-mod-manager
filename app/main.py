@@ -61,7 +61,7 @@ from app.services.mod_setup import (
 )
 from app.services.overrides_parser import load_shard_overrides
 from app.services.overrides_writer import render_overrides, write_file_atomic
-from app.services.server_control import run_command
+from app.services.server_control import run_command, run_remote_command
 from app.services.system_info import gather as gather_system_info, human_bytes
 from app.viewmodels import (
     ModCardVM,
@@ -203,8 +203,11 @@ def create_app() -> FastAPI:
         redoc_url=None,
         openapi_url=None,
     )
-    # Only the most recent control command is kept for display.
-    app.state.last_command: dict[str, Any] | None = None
+    # Keep the most recent command separately for EU and CN displays.
+    app.state.last_commands: dict[str, dict[str, Any] | None] = {
+        "eu": None,
+        "cn": None,
+    }
 
     app.mount("/static", StaticFiles(directory=APP_DIR / "static"), name="static")
     templates = Jinja2Templates(directory=APP_DIR / "templates")
@@ -383,7 +386,7 @@ def create_app() -> FastAPI:
             return _redirect_flash("/clusters", str(exc), "error")
 
         stop_result = run_command(cfg.server.stop_command)
-        app.state.last_command = {"action": "stop", "result": stop_result}
+        app.state.last_commands["eu"] = {"action": "stop", "result": stop_result}
         if not stop_result.ok:
             return _redirect_flash("/clusters", "Could not stop the DST server; cluster was not switched.", "error")
 
@@ -399,7 +402,7 @@ def create_app() -> FastAPI:
                 clusters.set_active(old_name)
                 rollback, rollback_error = _start_with_peer_guard()
                 if rollback is not None:
-                    app.state.last_command = {"action": "start", "result": rollback}
+                    app.state.last_commands["eu"] = {"action": "start", "result": rollback}
                 elif rollback_error:
                     logger.error("cluster switch rollback start blocked: %s", rollback_error)
             except (ClusterError, OSError) as rollback_error:
@@ -421,7 +424,7 @@ def create_app() -> FastAPI:
                 start_error or f"Could not start {name}; returned to {old_name}.",
                 "error",
             )
-        app.state.last_command = {"action": "start", "result": start_result}
+        app.state.last_commands["eu"] = {"action": "start", "result": start_result}
         if not start_result.ok:
             # Keep the server usable if the selected cluster cannot start.
             try:
@@ -432,7 +435,7 @@ def create_app() -> FastAPI:
                 )
                 rollback, rollback_error = _start_with_peer_guard()
                 if rollback is not None:
-                    app.state.last_command = {"action": "start", "result": rollback}
+                    app.state.last_commands["eu"] = {"action": "start", "result": rollback}
                 elif rollback_error:
                     logger.error("cluster rollback start blocked: %s", rollback_error)
             except (ClusterError, OSError) as rollback_error:
@@ -483,7 +486,7 @@ def create_app() -> FastAPI:
             "backups_count": len(backups.list_sessions()),
             "lua_command": lua_command,
             "steamcmd_command": find_steamcmd(cfg.steamcmd.command),
-            "last_command": app.state.last_command,
+            "last_commands": app.state.last_commands,
             "unified": _unified_field_shards()[0],
             "cluster_name": cluster.cluster_name,
             "cluster_summary": cluster_summary,
@@ -1168,13 +1171,23 @@ def create_app() -> FastAPI:
     # ------------------------------------------------------------------ #
     # Server page + control + logs
     # ------------------------------------------------------------------ #
-    def _control_command(action: str) -> str:
+    def _target_config(target: str) -> Any:
+        return cfg.server if target == "eu" else cfg.remote_server
+
+    def _control_command(target: str, action: str) -> str:
+        server_config = _target_config(target)
         return {
-            "start": cfg.server.start_command,
-            "stop": cfg.server.stop_command,
-            "restart": cfg.server.restart_command,
-            "status": cfg.server.status_command,
+            "start": server_config.start_command,
+            "stop": server_config.stop_command,
+            "restart": server_config.restart_command,
+            "status": server_config.status_command,
         }.get(action, "")
+
+    def _run_target_command(target: str, command: str) -> CommandResult:
+        if target == "eu":
+            return run_command(command)
+        remote = cfg.remote_server
+        return run_remote_command(remote.host, remote.user, remote.port, command)
 
     def _summarize_status(result: Any) -> str:
         """Reduce a status command's output to a compact dashboard state."""
@@ -1193,41 +1206,53 @@ def create_app() -> FastAPI:
             return "active"
         return "unknown"
 
-    def _peer_guard_error() -> str:
-        """Return an error unless the configured peer is explicitly inactive.
+    def _peer_status_result(target: str) -> tuple[CommandResult | None, str]:
+        """Return the other target's status result for a start guard."""
+        if target == "eu":
+            remote = cfg.remote_server
+            if remote.is_configured:
+                return (
+                    run_remote_command(
+                        remote.host,
+                        remote.user,
+                        remote.port,
+                        remote.status_command,
+                    ),
+                    remote.name,
+                )
+            if cfg.server.peer_status_command.strip():
+                return run_command(cfg.server.peer_status_command), cfg.server.peer_name
+            return None, remote.name
+        return run_command(cfg.server.status_command), "EU Server"
 
-        The peer command is operator-configured so it can use the existing
-        SSH alias/key and the exact service names on the CN host. Unknown or
-        mixed results fail closed: start must never proceed when the other
-        server cannot be verified as inactive.
-        """
-        peer_command = cfg.server.peer_status_command.strip()
-        if not peer_command:
+    def _peer_guard_error(target: str) -> str:
+        """Return an error unless the other server is explicitly inactive."""
+        peer_result, peer_name = _peer_status_result(target)
+        if peer_result is None:
             return (
-                f"Start blocked: configure the {cfg.server.peer_name} status check "
+                f"Start blocked: configure the {peer_name} remote status check "
                 "before starting this server."
             )
-
-        peer_result = run_command(peer_command)
         peer_state = _summarize_status(peer_result)
         logger.info(
-            "peer status check: state=%s ok=%s exit=%s",
+            "%s peer status check: state=%s ok=%s exit=%s",
+            target,
             peer_state,
             peer_result.ok,
             peer_result.exit_code,
         )
         if peer_state == "active":
-            return f"Start blocked: {cfg.server.peer_name} is active."
+            return f"Start blocked: {peer_name} is active."
         if peer_state != "inactive":
             return (
-                f"Start blocked: could not verify that {cfg.server.peer_name} "
+                f"Start blocked: could not verify that {peer_name} "
                 f"is inactive (state: {peer_state})."
             )
         return ""
 
     def _start_with_peer_guard() -> tuple[CommandResult | None, str]:
         """Start EU only when the configured peer is explicitly inactive."""
-        peer_error = _peer_guard_error()
+        peer_error = _peer_guard_error("eu")
         if peer_error:
             return None, peer_error
         return run_command(cfg.server.start_command), ""
@@ -1237,8 +1262,12 @@ def create_app() -> FastAPI:
 
     @app.get("/server", response_class=HTMLResponse)
     def server_page(request: Request) -> HTMLResponse:
+        target = str(request.query_params.get("target") or "eu")
+        if target not in ("eu", "cn"):
+            target = "eu"
+        is_remote = target == "cn"
         logs = []
-        for shard in cfg.dst.shards:
+        for shard in [] if is_remote else cfg.dst.shards:
             path = _shard_log_path(shard)
             entry: dict[str, Any] = {"shard": shard, "path": path, "exists": path.is_file()}
             if entry["exists"]:
@@ -1251,12 +1280,14 @@ def create_app() -> FastAPI:
             logs.append(entry)
         return render(request, "server.html", {
             "active_page": "server",
-            "cluster": read_cluster_info(cfg.dst.cluster_path, cfg.dst.shards),
-            "system": gather_system_info(
+            "is_remote": is_remote,
+            "server_target": _target_config(target),
+            "cluster": None if is_remote else read_cluster_info(cfg.dst.cluster_path, cfg.dst.shards),
+            "system": None if is_remote else gather_system_info(
                 [cfg.dst.cluster_path, cfg.dst.mods_path, cfg.backup.directory]
             ),
             "logs": logs,
-            "last_command": app.state.last_command,
+            "last_commands": app.state.last_commands,
         })
 
     @app.get("/server/config/raw/{target:path}", response_class=PlainTextResponse)
@@ -1282,31 +1313,30 @@ def create_app() -> FastAPI:
     async def server_run(request: Request) -> RedirectResponse:
         form = await request.form()
         # The control buttons live on both the dashboard and /server.
-        next_url = "/server" if str(form.get("next") or "") == "/server" else "/"
+        target = str(form.get("target") or "eu")
+        if target not in ("eu", "cn"):
+            return _redirect_flash("/", f"unknown server target: {target}", "error")
+        next_page = str(form.get("next") or "")
+        next_url = "/server" if next_page == "/server" else "/"
+        if next_url == "/server" and target == "cn":
+            next_url = "/server?target=cn"
         action = str(form.get("action") or "")
         if action not in ("start", "stop", "restart", "status"):
             return _redirect_flash(next_url, f"unknown action: {action}", "error")
-        command = _control_command(action)
+        command = _control_command(target, action)
         if not command.strip():
             return _redirect_flash(next_url, f"no {action}_command configured", "error")
-        if action == "start":
-            result, start_error = _start_with_peer_guard()
-            if result is None:
-                logger.warning("start blocked: %s", start_error)
-                return _redirect_flash(next_url, start_error, "error")
-        elif action == "restart":
-            restart_error = _peer_guard_error()
-            if restart_error:
-                logger.warning("restart blocked: %s", restart_error)
-                return _redirect_flash(next_url, restart_error, "error")
-            result = run_command(command)
-        else:
-            result = run_command(command)
+        if action in ("start", "restart"):
+            guard_error = _peer_guard_error(target)
+            if guard_error:
+                logger.warning("%s %s blocked: %s", target, action, guard_error)
+                return _redirect_flash(next_url, guard_error, "error")
+        result = _run_target_command(target, command)
         last_command: dict[str, Any] = {"action": action, "result": result}
         if action == "status":
             last_command["status_state"] = _summarize_status(result)
-        app.state.last_command = last_command
-        logger.info("%s command finished: ok=%s exit=%s", action, result.ok, result.exit_code)
+        app.state.last_commands[target] = last_command
+        logger.info("%s %s command finished: ok=%s exit=%s", target, action, result.ok, result.exit_code)
         if action == "status" and next_url == "/":
             state = str(last_command.get("status_state") or "unknown")
             level = "success" if state == "active" else "error"

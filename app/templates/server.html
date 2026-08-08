@@ -1,25 +1,45 @@
 {% extends "base.html" %}
-{% block title %}Servers · DST Mod Manager{% endblock %}
+{% block title %}{{ server_target.name if is_remote else "EU Server" }} · DST Mod Manager{% endblock %}
 {% block content %}
 <h1>Server control</h1>
 
 <div class="server-target-tabs" role="tablist" aria-label="Server targets">
-  <a class="server-target-tab active" href="/server" role="tab" aria-selected="true">
+  <a class="server-target-tab {{ '' if is_remote else 'active' }}" href="/server" role="tab" aria-selected="{{ 'false' if is_remote else 'true' }}">
     <span><span class="region-dot"></span> EU Server</span>
     <span class="badge info">Full management</span>
   </a>
+  {% if cfg.remote_server.is_configured %}
+  <a class="server-target-tab {{ 'active' if is_remote else '' }}" href="/server?target=cn" role="tab" aria-selected="{{ 'true' if is_remote else 'false' }}">
+    <span><span class="region-dot remote"></span> {{ cfg.remote_server.name }}</span>
+    <span class="badge info">SSH control</span>
+  </a>
+  {% else %}
   <span class="server-target-tab disabled" role="tab" aria-disabled="true">
-    <span><span class="region-dot remote"></span> CN Server</span>
-    <span class="badge muted-badge">Coming next</span>
+    <span><span class="region-dot remote"></span> {{ cfg.remote_server.name }}</span>
+    <span class="badge muted-badge">Not configured</span>
   </span>
+  {% endif %}
 </div>
 
 {% from "_controls.html" import control_buttons, command_results %}
 <div class="server-hero panel">
   <div class="server-hero-main">
     <div class="server-hero-copy">
+      {% if is_remote %}
+      <div class="server-card-kicker"><span class="region-dot remote"></span> CN · remote control</div>
+      {% else %}
       <div class="server-card-kicker"><span class="region-dot"></span> EU · local control</div>
+      {% endif %}
       <div class="server-hero-info">
+        {% if is_remote %}
+        <h2>{{ server_target.name }}</h2>
+        {% if cfg.remote_server.is_configured %}
+        <p class="server-card-summary">Status and lifecycle control through SSH.</p>
+        <p class="muted small">{{ server_target.user }}@{{ server_target.host }} · port {{ server_target.port }}</p>
+        {% else %}
+        <p class="server-card-summary muted">Configure remote_server in config.yaml to enable SSH control.</p>
+        {% endif %}
+        {% else %}
         <h2>EU Server{% if cluster.cluster_name %} <span class="muted">— {{ cluster.cluster_name }}</span>{% endif %}</h2>
         {% set cluster_values = dict(cluster.cluster.summary) %}
         {% if cluster.cluster.summary %}
@@ -30,16 +50,18 @@
         </p>
         {% endif %}
         {% if system.hostname %}<p class="muted small">{{ system.hostname }}{% if system.now %} · checked {{ system.now }}{% endif %}</p>{% endif %}
+        {% endif %}
       </div>
     </div>
     <div class="server-hero-actions">
       <h2>Control</h2>
-      {{ control_buttons(cfg, "/server") }}
+      {{ control_buttons(server_target, "/server", "cn" if is_remote else "eu", true if not is_remote else cfg.remote_server.is_configured) }}
     </div>
   </div>
-  {{ command_results(last_command) }}
+  {{ command_results(last_commands.get("cn" if is_remote else "eu")) }}
 </div>
 
+{% if not is_remote %}
 <div class="server-detail-grid">
 <div class="panel logs-panel">
   <h2>Logs</h2>
@@ -125,5 +147,7 @@
   {% endif %}
   {% endif %}
 </div>
+
+{% endif %}
 
 {% endblock %}

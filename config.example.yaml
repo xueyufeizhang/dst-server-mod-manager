@@ -75,6 +75,19 @@ server:
   peer_name: "CN Server"
   peer_status_command: ""
 
+# Optional lifecycle-only remote target. The Panel runs on EU and executes
+# these commands on CN over SSH. Mods, files, backups and cluster tools stay
+# local to EU.
+remote_server:
+  name: "CN Server"
+  host: "cn-server"             # SSH host or ~/.ssh/config alias
+  user: "dst"
+  port: 22
+  start_command: "sudo /usr/bin/systemctl start dst-master dst-caves"
+  stop_command: "sudo /usr/bin/systemctl stop dst-master dst-caves"
+  restart_command: "sudo /usr/bin/systemctl restart dst-master dst-caves"
+  status_command: "/usr/bin/systemctl is-active dst-master dst-caves"
+
 security:
   # Login credentials for the web panel (login page + session cookie;
   # sessions last 7 days and are all invalidated when the password changes).

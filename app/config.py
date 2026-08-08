@@ -74,6 +74,24 @@ class ServerConfig:
 
 
 @dataclass
+class RemoteServerConfig:
+    """The lifecycle-only remote target controlled through SSH."""
+
+    name: str = "CN Server"
+    host: str = ""
+    user: str = "dst"
+    port: int = 22
+    start_command: str = ""
+    stop_command: str = ""
+    restart_command: str = ""
+    status_command: str = ""
+
+    @property
+    def is_configured(self) -> bool:
+        return bool(self.host.strip() and self.status_command.strip())
+
+
+@dataclass
 class SecurityConfig:
     enable_basic_auth: bool = True
     username: str = "admin"
@@ -100,6 +118,7 @@ class SteamCmdConfig:
 class AppConfig:
     dst: DSTConfig
     server: ServerConfig
+    remote_server: RemoteServerConfig
     security: SecurityConfig
     backup: BackupConfig
     steamcmd: SteamCmdConfig = field(default_factory=SteamCmdConfig)
@@ -154,6 +173,7 @@ def load_config(path: str | Path | None = None) -> AppConfig:
         raise ConfigError("dst.shards must be a list of shard folder names")
 
     server_raw = _section(raw, "server")
+    remote_raw = _section(raw, "remote_server")
     security_raw = _section(raw, "security")
     backup_raw = _section(raw, "backup")
     lua_raw = _section(raw, "lua")
@@ -200,6 +220,16 @@ def load_config(path: str | Path | None = None) -> AppConfig:
             status_command=str(server_raw.get("status_command") or ""),
             peer_name=str(server_raw.get("peer_name") or "peer server"),
             peer_status_command=str(server_raw.get("peer_status_command") or ""),
+        ),
+        remote_server=RemoteServerConfig(
+            name=str(remote_raw.get("name") or "CN Server"),
+            host=str(remote_raw.get("host") or ""),
+            user=str(remote_raw.get("user") or "dst"),
+            port=int(remote_raw.get("port", 22)),
+            start_command=str(remote_raw.get("start_command") or ""),
+            stop_command=str(remote_raw.get("stop_command") or ""),
+            restart_command=str(remote_raw.get("restart_command") or ""),
+            status_command=str(remote_raw.get("status_command") or ""),
         ),
         security=SecurityConfig(
             enable_basic_auth=bool(security_raw.get("enable_basic_auth", True)),

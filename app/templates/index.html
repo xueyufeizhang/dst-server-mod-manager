@@ -21,7 +21,7 @@
     <a class="panel-action" href="/server">Open server control <span aria-hidden="true">→</span></a>
   </div>
 
-  {% from "_controls.html" import control_buttons, command_results, unavailable_control_buttons %}
+  {% from "_controls.html" import control_buttons, command_results %}
   <div class="server-card-grid">
     <article class="server-card server-card-primary">
       <div class="server-card-topline">
@@ -43,9 +43,9 @@
         {% if host_line %}<p class="muted small server-line">{{ host_line }}</p>{% endif %}
       </div>
       <div class="server-card-controls">
-        {{ control_buttons(cfg, "/") }}
+        {{ control_buttons(cfg.server, "/", "eu") }}
       </div>
-      {{ command_results(last_command, true) }}
+      {{ command_results(last_commands.get("eu"), true) }}
       <div class="server-card-footer">
         <span class="badge ok">Local control active</span>
         <a href="/server">View details <span aria-hidden="true">→</span></a>
@@ -55,17 +55,27 @@
     <article class="server-card server-card-remote">
       <div class="server-card-topline">
         <div class="server-card-kicker"><span class="region-dot remote"></span> CN · remote</div>
-        <span class="badge muted-badge">Not configured</span>
+        {% if cfg.remote_server.is_configured %}<span class="badge info">SSH control</span>
+        {% else %}<span class="badge muted-badge">Not configured</span>{% endif %}
       </div>
       <div class="server-card-info">
         <h2>CN Server</h2>
-        <p class="server-card-summary">Remote control is ready to be connected through SSH.</p>
+        {% if cfg.remote_server.is_configured %}
+        <p class="server-card-summary">Status and lifecycle control through SSH.</p>
+        <p class="muted small server-line">{{ cfg.remote_server.user }}@{{ cfg.remote_server.host }} · port {{ cfg.remote_server.port }}</p>
+        {% else %}
+        <p class="server-card-summary">Configure SSH to control the CN server from this panel.</p>
         <p class="muted small server-line">Only server status and Start / Stop / Restart will be available.</p>
+        {% endif %}
       </div>
-      {{ unavailable_control_buttons() }}
+      <div class="server-card-controls">
+        {{ control_buttons(cfg.remote_server, "/", "cn", cfg.remote_server.is_configured) }}
+      </div>
+      {{ command_results(last_commands.get("cn"), true) }}
       <div class="server-card-footer">
-        <span class="badge warn">Connection setup pending</span>
-        <span class="muted small">No remote command has been run</span>
+        {% if cfg.remote_server.is_configured %}<span class="badge ok">Remote control active</span>
+        {% else %}<span class="badge warn">Connection setup pending</span>{% endif %}
+        <a href="/server?target=cn">View details <span aria-hidden="true">→</span></a>
       </div>
     </article>
   </div>
