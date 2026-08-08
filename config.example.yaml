@@ -68,6 +68,13 @@ server:
   restart_command: ""
   status_command: ""
 
+  # Safety check before Start: this command runs on the EU host and should
+  # query the other server through SSH. Start is blocked unless its output is
+  # clearly inactive. For example, with an SSH config alias named cn-server:
+  #   peer_status_command: "ssh -o BatchMode=yes -o ConnectTimeout=10 cn-server 'systemctl is-active dst-master dst-caves'"
+  peer_name: "CN Server"
+  peer_status_command: ""
+
 security:
   # Login credentials for the web panel (login page + session cookie;
   # sessions last 7 days and are all invalidated when the password changes).

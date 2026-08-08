@@ -25,6 +25,8 @@ server:
   stop_command: "echo 'pretend stop: systemctl stop dst-master dst-caves'"
   restart_command: "echo 'pretend restart: systemctl restart dst-master dst-caves'"
   status_command: "echo 'pretend status: server is running'"
+  peer_name: "CN Server"
+  peer_status_command: "echo 'pretend peer status: inactive'"
 
 security:
   enable_basic_auth: true

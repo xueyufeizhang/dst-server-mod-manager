@@ -67,6 +67,10 @@ class ServerConfig:
     stop_command: str = ""
     restart_command: str = ""
     status_command: str = ""
+    # Optional command run on this host to check the other server before start.
+    # It can be an SSH command using the existing alias/key.
+    peer_name: str = "peer server"
+    peer_status_command: str = ""
 
 
 @dataclass
@@ -194,6 +198,8 @@ def load_config(path: str | Path | None = None) -> AppConfig:
             stop_command=str(server_raw.get("stop_command") or ""),
             restart_command=str(server_raw.get("restart_command") or ""),
             status_command=str(server_raw.get("status_command") or ""),
+            peer_name=str(server_raw.get("peer_name") or "peer server"),
+            peer_status_command=str(server_raw.get("peer_status_command") or ""),
         ),
         security=SecurityConfig(
             enable_basic_auth=bool(security_raw.get("enable_basic_auth", True)),

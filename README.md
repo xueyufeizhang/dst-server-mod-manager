@@ -265,6 +265,20 @@ steam ALL=(root) NOPASSWD: /usr/bin/systemctl restart dst-master dst-caves
 以 root 执行任意命令。面板**不会**默认内置任何危险命令；某条命令留空则对应
 按钮不显示。Stop / Restart 有二次确认，执行结果的 stdout/stderr 显示在页面上。
 
+为避免 EU 和 CN 同时运行导致存档错乱，Start 或 Restart 执行前会先运行
+`server.peer_status_command`。这个命令在 EU 主机上执行，可以通过已配置的 SSH
+alias 查询 CN 的服务状态：
+
+```yaml
+server:
+  peer_name: "CN Server"
+  peer_status_command: "ssh -o BatchMode=yes -o ConnectTimeout=10 cn-server 'systemctl is-active dst-master dst-caves'"
+```
+
+只有当检查结果明确为 `inactive` 时才会启动或重启 EU；如果 CN 是 `active`、状态
+`mixed`，或者 SSH/状态检查失败，操作都会被拒绝。这样在无法确认 CN 状态时会
+保持安全，不会误启动 EU。
+
 ## 查看服务器日志
 
 Server 页面的 Logs 表格列出每个 shard 的 `server_log.txt`（大小、修改时间），

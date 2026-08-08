@@ -30,7 +30,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from app.config import CONFIG_ENV_VAR, AppConfig, ConfigError, load_config
-from app.models import Mod, OverrideEntry, ShardOverrides
+from app.models import CommandResult, Mod, OverrideEntry, ShardOverrides
 from app.services import mod_scanner
 from app.services.auth import (
     COOKIE_NAME,
@@ -397,13 +397,30 @@ def create_app() -> FastAPI:
         except (ClusterError, OSError) as exc:
             try:
                 clusters.set_active(old_name)
-                rollback = run_command(cfg.server.start_command)
-                app.state.last_command = {"action": "start", "result": rollback}
+                rollback, rollback_error = _start_with_peer_guard()
+                if rollback is not None:
+                    app.state.last_command = {"action": "start", "result": rollback}
+                elif rollback_error:
+                    logger.error("cluster switch rollback start blocked: %s", rollback_error)
             except (ClusterError, OSError) as rollback_error:
                 logger.error("cluster switch rollback failed: %s", rollback_error)
             return _redirect_flash("/clusters", f"Cluster switch failed: {exc}", "error")
 
-        start_result = run_command(cfg.server.start_command)
+        start_result, start_error = _start_with_peer_guard()
+        if start_result is None:
+            try:
+                clusters.set_active(old_name)
+                cfg.dst.cluster_path = old_path
+                backups = _ActiveBackupManager(
+                    cfg.backup.directory, cfg.backup.keep_last, old_name
+                )
+            except (ClusterError, OSError) as rollback_error:
+                logger.error("cluster switch config rollback failed: %s", rollback_error)
+            return _redirect_flash(
+                "/clusters",
+                start_error or f"Could not start {name}; returned to {old_name}.",
+                "error",
+            )
         app.state.last_command = {"action": "start", "result": start_result}
         if not start_result.ok:
             # Keep the server usable if the selected cluster cannot start.
@@ -413,8 +430,11 @@ def create_app() -> FastAPI:
                 backups = _ActiveBackupManager(
                     cfg.backup.directory, cfg.backup.keep_last, old_name
                 )
-                rollback = run_command(cfg.server.start_command)
-                app.state.last_command = {"action": "start", "result": rollback}
+                rollback, rollback_error = _start_with_peer_guard()
+                if rollback is not None:
+                    app.state.last_command = {"action": "start", "result": rollback}
+                elif rollback_error:
+                    logger.error("cluster rollback start blocked: %s", rollback_error)
             except (ClusterError, OSError) as rollback_error:
                 logger.error("cluster rollback failed: %s", rollback_error)
             return _redirect_flash(
@@ -1173,6 +1193,45 @@ def create_app() -> FastAPI:
             return "active"
         return "unknown"
 
+    def _peer_guard_error() -> str:
+        """Return an error unless the configured peer is explicitly inactive.
+
+        The peer command is operator-configured so it can use the existing
+        SSH alias/key and the exact service names on the CN host. Unknown or
+        mixed results fail closed: start must never proceed when the other
+        server cannot be verified as inactive.
+        """
+        peer_command = cfg.server.peer_status_command.strip()
+        if not peer_command:
+            return (
+                f"Start blocked: configure the {cfg.server.peer_name} status check "
+                "before starting this server."
+            )
+
+        peer_result = run_command(peer_command)
+        peer_state = _summarize_status(peer_result)
+        logger.info(
+            "peer status check: state=%s ok=%s exit=%s",
+            peer_state,
+            peer_result.ok,
+            peer_result.exit_code,
+        )
+        if peer_state == "active":
+            return f"Start blocked: {cfg.server.peer_name} is active."
+        if peer_state != "inactive":
+            return (
+                f"Start blocked: could not verify that {cfg.server.peer_name} "
+                f"is inactive (state: {peer_state})."
+            )
+        return ""
+
+    def _start_with_peer_guard() -> tuple[CommandResult | None, str]:
+        """Start EU only when the configured peer is explicitly inactive."""
+        peer_error = _peer_guard_error()
+        if peer_error:
+            return None, peer_error
+        return run_command(cfg.server.start_command), ""
+
     def _shard_log_path(shard: str) -> Path:
         return cfg.dst.shard_dir(shard) / "server_log.txt"
 
@@ -1230,7 +1289,19 @@ def create_app() -> FastAPI:
         command = _control_command(action)
         if not command.strip():
             return _redirect_flash(next_url, f"no {action}_command configured", "error")
-        result = run_command(command)
+        if action == "start":
+            result, start_error = _start_with_peer_guard()
+            if result is None:
+                logger.warning("start blocked: %s", start_error)
+                return _redirect_flash(next_url, start_error, "error")
+        elif action == "restart":
+            restart_error = _peer_guard_error()
+            if restart_error:
+                logger.warning("restart blocked: %s", restart_error)
+                return _redirect_flash(next_url, restart_error, "error")
+            result = run_command(command)
+        else:
+            result = run_command(command)
         last_command: dict[str, Any] = {"action": action, "result": result}
         if action == "status":
             last_command["status_state"] = _summarize_status(result)
