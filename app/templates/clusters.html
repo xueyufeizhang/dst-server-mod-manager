@@ -49,24 +49,29 @@
           </button>
         </form>
         {% endif %}
-        <form method="post" action="/clusters/reset"
-              data-confirm-title="Reset {{ cluster.name }}?"
-              data-confirm-message="{{ 'Stop the DST server, clear this cluster save, and start it again' if cluster.active else 'Clear the save data for this cluster' }}. All cluster settings and mod configuration will be kept."
-              data-confirm-label="Reset world"
-              data-confirm-tone="danger">
-          <input type="hidden" name="name" value="{{ cluster.name }}">
-          <button type="submit" class="btn small">Reset world</button>
-        </form>
-        {% if not cluster.active %}
-        <form method="post" action="/clusters/delete"
-              data-confirm-title="Delete {{ cluster.name }}?"
-              data-confirm-message="Permanently delete this cluster and all of its files? This cannot be undone."
-              data-confirm-label="Delete cluster"
-              data-confirm-tone="danger">
-          <input type="hidden" name="name" value="{{ cluster.name }}">
-          <button type="submit" class="btn danger small">Delete</button>
-        </form>
-        {% endif %}
+        <details class="cluster-more">
+          <summary class="cluster-more-trigger" title="More actions" aria-label="More actions for {{ cluster.name }}">⋯</summary>
+          <div class="cluster-more-menu">
+            <form method="post" action="/clusters/reset"
+                  data-confirm-title="Reset {{ cluster.name }}?"
+                  data-confirm-message="{{ 'Stop the DST server, clear this cluster save, and start it again' if cluster.active else 'Clear the save data for this cluster' }}. All cluster settings and mod configuration will be kept."
+                  data-confirm-label="Reset world"
+                  data-confirm-tone="danger">
+              <input type="hidden" name="name" value="{{ cluster.name }}">
+              <button type="submit" class="cluster-menu-action">Reset world</button>
+            </form>
+            {% if not cluster.active %}
+            <form method="post" action="/clusters/delete"
+                  data-confirm-title="Delete {{ cluster.name }}?"
+                  data-confirm-message="Permanently delete this cluster and all of its files? This cannot be undone."
+                  data-confirm-label="Delete cluster"
+                  data-confirm-tone="danger">
+              <input type="hidden" name="name" value="{{ cluster.name }}">
+              <button type="submit" class="cluster-menu-action danger-text">Delete</button>
+            </form>
+            {% endif %}
+          </div>
+        </details>
       </div>
     </div>
     {% endfor %}

@@ -246,6 +246,40 @@ body.confirm-open { overflow: hidden; }
 .cluster-row-info { min-width: 0; }
 .cluster-row-name { display: flex; align-items: center; gap: 7px; margin-bottom: 3px; font-weight: 700; }
 .cluster-row-info code { color: var(--muted); font-size: 11px; }
+.cluster-row-actions { display: flex; align-items: center; justify-content: flex-end; flex: 0 0 auto; gap: 6px; }
+.cluster-more { position: relative; }
+.cluster-more-trigger {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: var(--muted-strong);
+  cursor: pointer;
+  font-size: 21px;
+  font-weight: 700;
+  line-height: 1;
+  list-style: none;
+}
+.cluster-more-trigger::-webkit-details-marker { display: none; }
+.cluster-more-trigger:hover, .cluster-more[open] > .cluster-more-trigger { border-color: var(--line); background: var(--surface); color: var(--ink); }
+.cluster-more-menu {
+  position: absolute;
+  top: calc(100% + 5px);
+  right: 0;
+  z-index: 30;
+  min-width: 132px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 10px 24px rgba(23, 32, 28, .15);
+  padding: 4px;
+}
+.cluster-more-menu form { margin: 0; }
+.cluster-menu-action { display: block; width: 100%; border: 0; border-radius: 5px; background: transparent; color: var(--ink); padding: 8px 10px; text-align: left; font-size: 12px; font-weight: 700; cursor: pointer; }
+.cluster-menu-action:hover { background: var(--surface-soft); }
+.cluster-menu-action.danger-text { color: var(--danger); }
 .breadcrumb { margin: 0 0 12px; }
 .back-link {
   display: inline-flex;
@@ -390,7 +424,6 @@ body.confirm-open { overflow: hidden; }
 .btn:disabled, .btn:disabled:hover { border-color: #d8d8ce; background: #e9e9e2; color: #92958a; }
 .btn.small { padding: 5px 9px; font-size: 12px; }
 
-.cluster-row-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 6px; }
 
 select, input[type="text"], input[type="password"], input[type="search"] {
   max-width: 100%;
