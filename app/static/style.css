@@ -390,6 +390,8 @@ body.confirm-open { overflow: hidden; }
 .btn:disabled, .btn:disabled:hover { border-color: #d8d8ce; background: #e9e9e2; color: #92958a; }
 .btn.small { padding: 5px 9px; font-size: 12px; }
 
+.cluster-row-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 6px; }
+
 select, input[type="text"], input[type="password"], input[type="search"] {
   max-width: 100%;
   min-height: 38px;

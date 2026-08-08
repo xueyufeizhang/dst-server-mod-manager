@@ -1,4 +1,4 @@
-"""Named DST cluster discovery, creation, and selection."""
+"""Named DST cluster discovery, creation, selection, and maintenance."""
 
 from __future__ import annotations
 
@@ -100,6 +100,42 @@ class ClusterManager:
             raise ClusterError("active_cluster_file is not configured")
         self.active_file.parent.mkdir(parents=True, exist_ok=True)
         write_file_atomic(self.active_file, f"DST_CLUSTER={name}\n")
+        return target
+
+    def _existing_cluster(self, name: str) -> Path:
+        """Return a real cluster directory after validating its name/path."""
+        target = self.path_for(name)
+        if target.is_symlink():
+            raise ClusterError(f"refusing to operate on symlinked cluster: {name}")
+        if not target.is_dir():
+            raise ClusterError(f"cluster not found: {name}")
+        return target
+
+    def reset(self, name: str) -> Path:
+        """Remove generated world saves while keeping all cluster settings."""
+        target = self._existing_cluster(name)
+        for shard in self.shards:
+            save_dir = target / shard / "save"
+            if save_dir.is_symlink():
+                raise ClusterError(f"refusing to remove symlinked save directory: {save_dir}")
+            if save_dir.exists() and not save_dir.is_dir():
+                raise ClusterError(f"save path is not a directory: {save_dir}")
+
+        # Validate every shard before removing any save directory, so a bad
+        # path cannot leave a partially reset cluster.
+        for shard in self.shards:
+            save_dir = target / shard / "save"
+            if save_dir.is_dir():
+                shutil.rmtree(save_dir)
+        return target
+
+    def delete(self, name: str) -> Path:
+        """Delete a non-active cluster directory and everything in it."""
+        name = self.validate_name(name)
+        if name == self.active_name():
+            raise ClusterError("cannot delete the active cluster; switch to another cluster first")
+        target = self._existing_cluster(name)
+        shutil.rmtree(target)
         return target
 
     @staticmethod

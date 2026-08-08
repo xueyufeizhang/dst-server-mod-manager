@@ -363,6 +363,79 @@ def create_app() -> FastAPI:
             f"Created {name}. It is a fresh world with all Mod entries disabled.",
         )
 
+    @app.post("/clusters/reset")
+    async def reset_cluster(request: Request) -> RedirectResponse:
+        form = await request.form()
+        name = str(form.get("name") or "")
+        try:
+            name = clusters.validate_name(name)
+            target = clusters.path_for(name)
+            if not target.is_dir():
+                raise ClusterError(f"cluster not found: {name}")
+        except ClusterError as exc:
+            return _redirect_flash("/clusters", str(exc), "error")
+
+        is_active = name == clusters.active_name()
+        if is_active:
+            stop_result = run_command(cfg.server.stop_command)
+            app.state.last_commands["eu"] = {"action": "stop", "result": stop_result}
+            if not stop_result.ok:
+                return _redirect_flash(
+                    "/clusters",
+                    "Could not stop the DST server; cluster was not reset.",
+                    "error",
+                )
+
+        try:
+            clusters.reset(name)
+        except (ClusterError, OSError) as exc:
+            if is_active:
+                # A failed reset must not leave the active server down.
+                restart, restart_error = _start_with_peer_guard()
+                if restart is not None:
+                    app.state.last_commands["eu"] = {"action": "start", "result": restart}
+                elif restart_error:
+                    logger.error("cluster reset recovery start blocked: %s", restart_error)
+            return _redirect_flash("/clusters", f"Cluster reset failed: {exc}", "error")
+
+        if not is_active:
+            logger.info("reset cluster %s at %s", name, target)
+            return _redirect_flash(
+                "/clusters",
+                f"Reset {name}: save data cleared; all cluster settings were kept.",
+            )
+
+        start_result, start_error = _start_with_peer_guard()
+        if start_result is None:
+            return _redirect_flash(
+                "/clusters",
+                f"Reset {name}, but the server was not started: {start_error}",
+                "error",
+            )
+        app.state.last_commands["eu"] = {"action": "start", "result": start_result}
+        if not start_result.ok:
+            return _redirect_flash(
+                "/clusters",
+                f"Reset {name}, but the server failed to start.",
+                "error",
+            )
+        logger.info("reset active cluster %s at %s", name, target)
+        return _redirect_flash(
+            "/clusters",
+            f"Reset {name}: save data cleared; all cluster settings were kept and the server was started.",
+        )
+
+    @app.post("/clusters/delete")
+    async def delete_cluster(request: Request) -> RedirectResponse:
+        form = await request.form()
+        name = str(form.get("name") or "")
+        try:
+            path = clusters.delete(name)
+        except (ClusterError, OSError) as exc:
+            return _redirect_flash("/clusters", str(exc), "error")
+        logger.info("deleted cluster %s at %s", name, path)
+        return _redirect_flash("/clusters", f"Deleted cluster {name}.")
+
     @app.post("/clusters/switch")
     async def switch_cluster(request: Request) -> RedirectResponse:
         nonlocal backups

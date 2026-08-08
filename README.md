@@ -172,7 +172,9 @@ dst:
 所有 Mod 配置初始化为 `enabled = false`。`dst.active_cluster_file` 必须与 Master/Caves
 的 systemd 服务使用同一个文件，例如内容为 `DST_CLUSTER=Main`。切换 cluster 前，Panel
 会停止两个 shard，更新这个文件，再启动两个 shard；现有的 start/stop/restart/status
-命令无需改变。
+命令无需改变。每个 cluster 还可以执行 Reset world：只清空各 shard 的 `save/` 目录，
+保留 cluster/server/mod 配置；重置当前 cluster 时会先停服并在完成后启动。非 active
+cluster 可以直接 Delete，active cluster 必须先切换后才能删除。
 
 **务必修改 `security.password`。** 相对路径相对于 `config.yaml` 所在目录解析。
 
