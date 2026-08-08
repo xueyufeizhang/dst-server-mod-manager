@@ -1194,8 +1194,30 @@ def create_app() -> FastAPI:
         output = "\n".join(
             part for part in (getattr(result, "stdout", ""), getattr(result, "stderr", "")) if part
         ).lower()
-        inactive = bool(re.search(r"\b(inactive|failed|dead|stopped|offline)\b", output))
-        active = bool(re.search(r"\b(active|running|online|started)\b", output))
+        active_states = {"active", "running", "online", "started"}
+        inactive_states = {"inactive", "failed", "dead", "stopped", "offline"}
+
+        # Prefer authoritative systemctl output. This avoids treating words
+        # from a unit's recent log lines as additional service states.
+        explicit_states: list[str] = []
+        for line in output.splitlines():
+            line = line.strip()
+            active_line = re.match(r"^active:\s+([a-z-]+)", line)
+            if active_line:
+                explicit_states.append(active_line.group(1))
+                continue
+            if line in active_states or line in inactive_states:
+                explicit_states.append(line)
+
+        state_source = explicit_states if explicit_states else []
+        if state_source:
+            active = any(state in active_states for state in state_source)
+            inactive = any(state in inactive_states for state in state_source)
+        else:
+            # Compatibility fallback for simple commands such as
+            # "echo server is running" used by the sample configuration.
+            inactive = bool(re.search(r"\b(inactive|failed|dead|stopped|offline)\b", output))
+            active = bool(re.search(r"\b(active|running|online|started)\b", output))
         if active and inactive:
             return "mixed"
         if active:
