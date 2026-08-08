@@ -40,6 +40,12 @@ class DSTConfig:
     # without any Workshop download; the panel tags them "local" to tell them
     # apart from mods_path. None = feature off.
     local_mods_path: Path | None = None
+    # Parent directory containing named clusters (Main, Farm, ...). Defaults
+    # to the current cluster's parent for backwards compatibility.
+    clusters_root: Path | None = None
+    # Environment file consumed by the systemd shard units. The panel updates
+    # DST_CLUSTER here when switching clusters; None disables switching.
+    active_cluster_file: Path | None = None
     shards: list[str] = field(default_factory=lambda: ["Master", "Caves"])
     # True (default): the Mods page shows ONE set of controls per mod and
     # saving writes identical settings to every shard — the usual setup.
@@ -150,6 +156,17 @@ def load_config(path: str | Path | None = None) -> AppConfig:
     steamcmd_raw = _section(raw, "steamcmd")
 
     mods_path = _resolve_path(dst_raw["mods_path"], base)
+    cluster_path = _resolve_path(dst_raw["cluster_path"], base)
+    clusters_root_raw = str(dst_raw.get("clusters_root") or "").strip()
+    clusters_root = (
+        _resolve_path(clusters_root_raw, base)
+        if clusters_root_raw
+        else cluster_path.parent
+    )
+    active_cluster_raw = str(dst_raw.get("active_cluster_file") or "").strip()
+    active_cluster_file = (
+        _resolve_path(active_cluster_raw, base) if active_cluster_raw else None
+    )
     mods_setup_raw = str(dst_raw.get("mods_setup_path") or "").strip()
     mods_setup_path = (
         _resolve_path(mods_setup_raw, base)
@@ -161,10 +178,12 @@ def load_config(path: str | Path | None = None) -> AppConfig:
 
     return AppConfig(
         dst=DSTConfig(
-            cluster_path=_resolve_path(dst_raw["cluster_path"], base),
+            cluster_path=cluster_path,
             mods_path=mods_path,
             mods_setup_path=mods_setup_path,
             local_mods_path=local_mods_path,
+            clusters_root=clusters_root,
+            active_cluster_file=active_cluster_file,
             shards=[s.strip() for s in shards if s.strip()],
             unified_mod_config=bool(dst_raw.get("unified_mod_config", True)),
         ),

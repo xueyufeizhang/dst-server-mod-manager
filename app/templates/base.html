@@ -18,7 +18,12 @@
     <a href="/mods" class="{{ 'active' if active_page == 'mods' else '' }}">Mods</a>
     <a href="/files" class="{{ 'active' if active_page == 'files' else '' }}">Files</a>
     <a href="/backups" class="{{ 'active' if active_page == 'backups' else '' }}">Backups</a>
+    <a href="/clusters" class="{{ 'active' if active_page == 'clusters' else '' }}">Clusters</a>
   </nav>
+  <a class="cluster-pill" href="/clusters" title="Manage clusters">
+    <span class="cluster-pill-label">Active</span>
+    <strong>{{ active_cluster }}</strong>
+  </a>
   {% if auth_enabled %}
   <form method="post" action="/logout" class="logout-form">
     <button type="submit" class="logout-btn">Log out</button>

@@ -144,6 +144,10 @@ cp config.example.yaml config.yaml
 dst:
   # 包含 Master/、Caves/ 的存档目录
   cluster_path: /home/steam/.klei/DoNotStarveTogether/MyDediServer
+  # 包含多个命名 cluster 的父目录，例如 Main/、Farm/
+  clusters_root: /home/steam/.klei/DoNotStarveTogether
+  # 与 Master/Caves 的 systemd 服务共享；Panel 切换 cluster 时会更新它
+  active_cluster_file: /home/steam/dstserver/active-cluster.env
   # 已下载 workshop mods 的目录
   mods_path: "/home/steam/Steam/steamapps/common/Don't Starve Together Dedicated Server/mods"
   shards: [Master, Caves]
@@ -162,6 +166,13 @@ dst:
 当服务器连 Workshop 总是超时时，把 mod 手动拷进去是可靠的兜底方案。面板会
 一并扫描这个目录，并给其中的 mod 打上蓝色 `local` 标签以便区分；同一个 id
 在两边都存在时，按 local 副本显示。
+
+`dst.clusters_root` 开启多 cluster 管理。Panel 的 Clusters 页面可以从当前 cluster
+复制配置创建一个新的空白世界；新世界不复制 `Master/save`、`Caves/save`，并会把
+所有 Mod 配置初始化为 `enabled = false`。`dst.active_cluster_file` 必须与 Master/Caves
+的 systemd 服务使用同一个文件，例如内容为 `DST_CLUSTER=Main`。切换 cluster 前，Panel
+会停止两个 shard，更新这个文件，再启动两个 shard；现有的 start/stop/restart/status
+命令无需改变。
 
 **务必修改 `security.password`。** 相对路径相对于 `config.yaml` 所在目录解析。
 
@@ -377,4 +388,3 @@ Web 面板本身不下载 mod——它只把 id 写进 `dedicated_server_mods_se
 - 编辑 `cluster.ini` / `server.ini`、查看服务器日志
 - 一键“从 Master 复制配置到 Caves”
 - WebSocket 实时显示重启命令输出
-- 多集群（多 cluster_path）支持

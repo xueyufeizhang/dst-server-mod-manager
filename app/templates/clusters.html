@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Clusters · DST Mod Manager{% endblock %}
+{% block content %}
+<h1>Clusters</h1>
+
+<div class="panel cluster-create-panel">
+  <div class="panel-title">
+    <h2>Create cluster</h2>
+    <span class="muted small">Fresh world · inherited settings · Mods disabled</span>
+  </div>
+  <form method="post" action="/clusters/create" class="cluster-create-form">
+    <input type="text" name="name" required maxlength="64" pattern="[A-Za-z0-9][A-Za-z0-9_-]{0,63}"
+           placeholder="e.g. Farm" autocomplete="off">
+    <button type="submit" class="btn primary">Create cluster</button>
+  </form>
+</div>
+
+<div class="panel">
+  <div class="panel-title">
+    <h2>Available clusters</h2>
+    {% if not cluster_switching_available %}
+    <span class="badge warn">switching needs active_cluster_file</span>
+    {% endif %}
+  </div>
+  {% if not cluster_entries %}
+  <p class="muted">No cluster directories found in <code>{{ cfg.dst.clusters_root }}</code>.</p>
+  {% else %}
+  <div class="cluster-list">
+    {% for cluster in cluster_entries %}
+    <div class="cluster-row {{ 'active' if cluster.active else '' }}">
+      <div class="cluster-row-info">
+        <div class="cluster-row-name">
+          {{ cluster.name }}
+          {% if cluster.active %}<span class="badge ok">active</span>{% endif %}
+        </div>
+        <code>{{ cluster.path }}</code>
+      </div>
+      {% if not cluster.active %}
+      <form method="post" action="/clusters/switch"
+            onsubmit="return confirm('Stop the DST server and switch to {{ cluster.name }}?');">
+        <input type="hidden" name="name" value="{{ cluster.name }}">
+        <button type="submit" class="btn small" {{ 'disabled' if not cluster_switching_available else '' }}
+                title="{{ 'Set dst.active_cluster_file in config.yaml first' if not cluster_switching_available else 'Stop the server and switch active cluster' }}">
+          Switch to {{ cluster.name }}
+        </button>
+      </form>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

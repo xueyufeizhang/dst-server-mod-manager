@@ -40,6 +40,7 @@ from app.services.auth import (
     verify_token,
 )
 from app.services.backup import BackupError, BackupManager, BackupSession
+from app.services.clusters import ClusterError, ClusterManager
 from app.services.cluster_info import read_cluster_info
 from app.services.download_jobs import DownloadManager
 from app.services.logs import tail_file
@@ -78,6 +79,25 @@ RESTART_HINT = "Restart the DST server for the changes to take effect."
 
 # Pseudo-shard name used for dedicated_server_mods_setup.lua backups.
 MODS_SETUP_BACKUP_KEY = "ModSetup"
+
+
+class _ActiveBackupManager:
+    """Keep operation backups in a separate directory for each cluster."""
+
+    def __init__(self, root: Path, keep_last: int, cluster_name: str) -> None:
+        self.root = root
+        self.keep_last = keep_last
+        self.cluster_name = cluster_name
+
+    def _manager(self) -> BackupManager:
+        return BackupManager(self.root / self.cluster_name, self.keep_last)
+
+    @property
+    def directory(self) -> Path:
+        return self.root / self.cluster_name
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._manager(), name)
 
 
 def _write_overrides_if_changed(
@@ -189,7 +209,19 @@ def create_app() -> FastAPI:
     app.mount("/static", StaticFiles(directory=APP_DIR / "static"), name="static")
     templates = Jinja2Templates(directory=APP_DIR / "templates")
 
-    backups = BackupManager(cfg.backup.directory, cfg.backup.keep_last)
+    clusters = ClusterManager(
+        cfg.dst.clusters_root or cfg.dst.cluster_path.parent,
+        cfg.dst.active_cluster_file,
+        cfg.dst.cluster_path,
+        cfg.dst.shards,
+        cfg.lua_command,
+    )
+    active_path = clusters.active_path()
+    if active_path.is_dir():
+        cfg.dst.cluster_path = active_path
+    backups = _ActiveBackupManager(
+        cfg.backup.directory, cfg.backup.keep_last, clusters.active_name()
+    )
     downloads = DownloadManager()
 
     def _start_download(workshop_id: str) -> tuple[bool, str]:
@@ -219,6 +251,10 @@ def create_app() -> FastAPI:
         context.setdefault("shards", cfg.dst.shards)
         context.setdefault("static_version", static_version)
         context.setdefault("auth_enabled", cfg.security.enable_basic_auth)
+        context.setdefault("active_cluster", clusters.active_name())
+        context.setdefault("clusters", clusters.list_clusters())
+        context.setdefault("cluster_switching_available", clusters.switching_available)
+        context.setdefault("backup_directory", backups.directory)
         return templates.TemplateResponse(request, name, context)
 
     # ------------------------------------------------------------------ #
@@ -299,6 +335,96 @@ def create_app() -> FastAPI:
         all controls bind to the primary shard and apply everywhere."""
         unified = cfg.dst.unified_mod_config and len(cfg.dst.shards) > 1
         return unified, ([cfg.dst.shards[0]] if unified else cfg.dst.shards)
+
+    # ------------------------------------------------------------------ #
+    # Named cluster management
+    # ------------------------------------------------------------------ #
+    @app.get("/clusters", response_class=HTMLResponse)
+    def clusters_page(request: Request) -> HTMLResponse:
+        return render(request, "clusters.html", {
+            "active_page": "clusters",
+            "cluster_entries": clusters.list_clusters(),
+        })
+
+    @app.post("/clusters/create")
+    async def create_cluster(request: Request) -> RedirectResponse:
+        form = await request.form()
+        name = str(form.get("name") or "")
+        try:
+            path = clusters.create_from_active(name)
+        except (ClusterError, OSError) as exc:
+            return _redirect_flash("/clusters", str(exc), "error")
+        logger.info("created cluster %s at %s", name, path)
+        return _redirect_flash(
+            "/clusters",
+            f"Created {name}. It is a fresh world with all Mod entries disabled.",
+        )
+
+    @app.post("/clusters/switch")
+    async def switch_cluster(request: Request) -> RedirectResponse:
+        nonlocal backups
+        form = await request.form()
+        name = str(form.get("name") or "")
+        old_name = clusters.active_name()
+        if name == old_name:
+            return _redirect_flash("/clusters", f"{name} is already active.")
+        if not clusters.switching_available:
+            return _redirect_flash(
+                "/clusters",
+                "Cluster switching is disabled: set dst.active_cluster_file in config.yaml first.",
+                "error",
+            )
+        try:
+            clusters.validate_name(name)
+            target = clusters.path_for(name)
+            if not target.is_dir():
+                raise ClusterError(f"cluster not found: {name}")
+        except ClusterError as exc:
+            return _redirect_flash("/clusters", str(exc), "error")
+
+        stop_result = run_command(cfg.server.stop_command)
+        app.state.last_command = {"action": "stop", "result": stop_result}
+        if not stop_result.ok:
+            return _redirect_flash("/clusters", "Could not stop the DST server; cluster was not switched.", "error")
+
+        old_path = cfg.dst.cluster_path
+        try:
+            clusters.set_active(name)
+            cfg.dst.cluster_path = target
+            backups = _ActiveBackupManager(
+                cfg.backup.directory, cfg.backup.keep_last, name
+            )
+        except (ClusterError, OSError) as exc:
+            try:
+                clusters.set_active(old_name)
+                rollback = run_command(cfg.server.start_command)
+                app.state.last_command = {"action": "start", "result": rollback}
+            except (ClusterError, OSError) as rollback_error:
+                logger.error("cluster switch rollback failed: %s", rollback_error)
+            return _redirect_flash("/clusters", f"Cluster switch failed: {exc}", "error")
+
+        start_result = run_command(cfg.server.start_command)
+        app.state.last_command = {"action": "start", "result": start_result}
+        if not start_result.ok:
+            # Keep the server usable if the selected cluster cannot start.
+            try:
+                clusters.set_active(old_name)
+                cfg.dst.cluster_path = old_path
+                backups = _ActiveBackupManager(
+                    cfg.backup.directory, cfg.backup.keep_last, old_name
+                )
+                rollback = run_command(cfg.server.start_command)
+                app.state.last_command = {"action": "start", "result": rollback}
+            except (ClusterError, OSError) as rollback_error:
+                logger.error("cluster rollback failed: %s", rollback_error)
+            return _redirect_flash(
+                "/clusters",
+                f"Could not start {name}; returned to {old_name}.",
+                "error",
+            )
+
+        logger.info("switched active cluster from %s to %s", old_name, name)
+        return _redirect_flash("/clusters", f"Switched active cluster to {name}.")
 
     # ------------------------------------------------------------------ #
     # Dashboard

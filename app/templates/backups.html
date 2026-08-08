@@ -4,7 +4,7 @@
 <h1>Backups</h1>
 <p class="muted small">
   Keeps the last {{ cfg.backup.keep_last if cfg.backup.keep_last > 0 else "∞" }} backups in
-  <code>{{ cfg.backup.directory }}</code>.
+  <code>{{ backup_directory }}</code> for <strong>{{ active_cluster }}</strong>.
 </p>
 
 {% if not sessions %}

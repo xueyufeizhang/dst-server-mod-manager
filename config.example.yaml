@@ -9,6 +9,15 @@ dst:
   # The cluster directory that contains the shard folders (Master/, Caves/, ...)
   cluster_path: /home/steam/.klei/DoNotStarveTogether/MyDediServer
 
+  # Parent directory containing named clusters (Main, Farm, ...). Defaults
+  # to cluster_path's parent when omitted.
+  clusters_root: /home/steam/.klei/DoNotStarveTogether
+
+  # File read by the Master/Caves systemd units. The panel writes
+  # DST_CLUSTER=<name> here when switching clusters. Leave empty when the
+  # server is managed as one fixed cluster.
+  active_cluster_file: /home/steam/dstserver/active-cluster.env
+
   # The directory that contains the downloaded workshop mods
   # (folders named workshop-378160973 etc., bare numeric ids also accepted).
   # If your server uses -ugc_directory, this is usually:
