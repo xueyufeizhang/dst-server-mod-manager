@@ -9,7 +9,7 @@ return {
         },
     },
     ["workshop-378160973"] = {
-        enabled = true,
+        enabled = false,
         configuration_options = {
             ENABLEPINGS = true,
             FIREOPTIONS = 2,

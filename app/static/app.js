@@ -1,11 +1,133 @@
 // Shared state between the widgets below: dirty-checkers feed the
 // leave-with-unsaved-changes warning; form submits suppress it (saving IS
 // how you leave the page).
-var DST = { dirtyCheckers: [], suppressUnloadWarning: false };
+var DST = {
+  dirtyCheckers: [],
+  suppressUnloadWarning: false,
+  confirmState: null,
+};
+
+// Keep destructive-action confirmation inside the app so it matches the
+// site's visual language instead of falling back to the browser's native UI.
+(function () {
+  var modal = document.getElementById("confirm-modal");
+  if (!modal) return;
+
+  var title = modal.querySelector("#confirm-title");
+  var message = modal.querySelector("#confirm-message");
+  var confirmButton = modal.querySelector("#confirm-submit");
+  var cancelButtons = modal.querySelectorAll("[data-confirm-cancel]");
+
+  function close(confirmed) {
+    var state = DST.confirmState;
+    DST.confirmState = null;
+    modal.hidden = true;
+    modal.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("confirm-open");
+    if (state && state.focus && typeof state.focus.focus === "function") state.focus.focus();
+    if (confirmed && state && state.onConfirm) state.onConfirm();
+  }
+
+  window.dstOpenConfirm = function (options) {
+    if (DST.confirmState) return;
+    var active = document.activeElement;
+    title.textContent = options.title || "Confirm action";
+    message.textContent = options.message || "Are you sure you want to continue?";
+    confirmButton.textContent = options.confirmLabel || "Confirm";
+    confirmButton.className = "btn " + (options.tone === "primary" ? "primary" : "danger");
+    DST.confirmState = { onConfirm: options.onConfirm, focus: active };
+    modal.hidden = false;
+    modal.setAttribute("aria-hidden", "false");
+    document.body.classList.add("confirm-open");
+    window.setTimeout(function () { confirmButton.focus(); }, 0);
+  };
+
+  confirmButton.addEventListener("click", function () { close(true); });
+  cancelButtons.forEach(function (button) {
+    button.addEventListener("click", function () { close(false); });
+  });
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape" && DST.confirmState) {
+      event.preventDefault();
+      close(false);
+    }
+  });
+
+  // Submit-based confirmations, such as Start/Stop/Restart and backup restore.
+  document.addEventListener("submit", function (event) {
+    var form = event.target;
+    if (!form || form.dataset.confirmBypass === "true" || !form.dataset.confirmMessage) return;
+    event.preventDefault();
+    DST.suppressUnloadWarning = false;
+    var submitter = event.submitter;
+    window.dstOpenConfirm({
+      title: form.dataset.confirmTitle,
+      message: form.dataset.confirmMessage,
+      confirmLabel: form.dataset.confirmLabel,
+      tone: form.dataset.confirmTone,
+      onConfirm: function () {
+        form.dataset.confirmBypass = "true";
+        if (typeof form.requestSubmit === "function") form.requestSubmit(submitter || undefined);
+        else HTMLFormElement.prototype.submit.call(form);
+      },
+    });
+  }, true);
+
+  // Button-based confirmations preserve the clicked submit button's formaction
+  // and name/value, which is used by the Mods page for remove/delete actions.
+  document.addEventListener("click", function (event) {
+    var button = event.target.closest ? event.target.closest("button[data-confirm-message]") : null;
+    if (!button) return;
+    event.preventDefault();
+    event.stopPropagation();
+    var form = button.form;
+    window.dstOpenConfirm({
+      title: button.dataset.confirmTitle,
+      message: button.dataset.confirmMessage,
+      confirmLabel: button.dataset.confirmLabel,
+      tone: button.dataset.confirmTone,
+      onConfirm: function () {
+        if (!form) return;
+        form.dataset.confirmBypass = "true";
+        if (typeof form.requestSubmit === "function") form.requestSubmit(button);
+        else HTMLFormElement.prototype.submit.call(form);
+      },
+    });
+  }, true);
+})();
 
 function dstAnyDirty() {
   return DST.dirtyCheckers.some(function (fn) { return fn(); });
 }
+
+// Use the same in-app confirmation for normal navigation away from an
+// unsaved Mods form. Browser refresh/close warnings remain system-owned.
+document.addEventListener("click", function (event) {
+  if (DST.suppressUnloadWarning || !dstAnyDirty()) return;
+  var link = event.target.closest ? event.target.closest("a[href]") : null;
+  if (!link || event.defaultPrevented || event.button !== 0) return;
+  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  if (link.target && link.target !== "_self") return;
+  if (link.hasAttribute("download")) return;
+
+  var destination;
+  try { destination = new URL(link.href, window.location.href); }
+  catch (_) { return; }
+  if (destination.origin !== window.location.origin) return;
+
+  event.preventDefault();
+  event.stopPropagation();
+  window.dstOpenConfirm({
+    title: "Leave without saving?",
+    message: "You have unsaved changes on the Mods page. Leaving now will discard them.",
+    confirmLabel: "Leave page",
+    tone: "danger",
+    onConfirm: function () {
+      DST.suppressUnloadWarning = true;
+      window.location.href = destination.href;
+    },
+  });
+}, true);
 
 document.addEventListener("submit", function () {
   DST.suppressUnloadWarning = true;
@@ -265,10 +387,23 @@ window.addEventListener("beforeunload", function (e) {
   });
   form.addEventListener("submit", function (e) {
     var n = checkedCount();
-    if (n === 0 || !confirm("Permanently delete " + n + " backup record(s)? This cannot be undone.")) {
+    if (n === 0) {
       e.preventDefault();
       DST.suppressUnloadWarning = false; // submit was cancelled; keep guarding
+      return;
     }
+    e.preventDefault();
+    DST.suppressUnloadWarning = false;
+    window.dstOpenConfirm({
+      title: "Delete backups?",
+      message: "Permanently delete " + n + " selected backup record(s)? This cannot be undone.",
+      confirmLabel: "Delete backups",
+      tone: "danger",
+      onConfirm: function () {
+        DST.suppressUnloadWarning = true;
+        HTMLFormElement.prototype.submit.call(form);
+      },
+    });
   });
   update();
 })();

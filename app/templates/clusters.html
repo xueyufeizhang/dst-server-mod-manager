@@ -37,7 +37,10 @@
       </div>
       {% if not cluster.active %}
       <form method="post" action="/clusters/switch"
-            onsubmit="return confirm('Stop the DST server and switch to {{ cluster.name }}?');">
+            data-confirm-title="Switch cluster?"
+            data-confirm-message="Stop the DST server and switch to {{ cluster.name }}?"
+            data-confirm-label="Switch cluster"
+            data-confirm-tone="primary">
         <input type="hidden" name="name" value="{{ cluster.name }}">
         <button type="submit" class="btn small" {{ 'disabled' if not cluster_switching_available else '' }}
                 title="{{ 'Set dst.active_cluster_file in config.yaml first' if not cluster_switching_available else 'Stop the server and switch active cluster' }}">

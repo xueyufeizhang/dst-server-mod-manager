@@ -12,6 +12,85 @@
 </div>
 {% endif %}
 
+<section class="dashboard-section">
+  <div class="section-heading">
+    <div>
+      <h2>Servers</h2>
+      <p class="muted small">Control both game servers from one place.</p>
+    </div>
+    <a class="panel-action" href="/server">Open server control <span aria-hidden="true">→</span></a>
+  </div>
+
+  {% from "_controls.html" import control_buttons, command_results, unavailable_control_buttons %}
+  <div class="server-card-grid">
+    <article class="server-card server-card-primary">
+      <div class="server-card-topline">
+        <div class="server-card-kicker"><span class="region-dot"></span> EU · primary</div>
+        <span class="badge info">Full management</span>
+      </div>
+      <div class="server-card-info">
+        <h2>EU Server</h2>
+        {% if cluster_name %}
+        <p class="server-card-summary">
+          <strong>{{ cluster_name }}</strong>
+          {% if cluster_summary.get("Game mode") %}<span class="muted"> · {{ cluster_summary.get("Game mode") }}</span>{% endif %}
+          {% if cluster_summary.get("Max players") %}<span class="muted"> · max {{ cluster_summary.get("Max players") }} players</span>{% endif %}
+          {% if cluster_summary.get("PvP") %}<span class="muted"> · PvP {{ 'on' if cluster_summary.get("PvP") == 'true' else 'off' }}</span>{% endif %}
+        </p>
+        {% else %}
+        <p class="server-card-summary muted">EU server cluster information is unavailable.</p>
+        {% endif %}
+        {% if host_line %}<p class="muted small server-line">{{ host_line }}</p>{% endif %}
+      </div>
+      <div class="server-card-controls">
+        {{ control_buttons(cfg, "/") }}
+      </div>
+      {{ command_results(last_command, true) }}
+      <div class="server-card-footer">
+        <span class="badge ok">Local control active</span>
+        <a href="/server">View details <span aria-hidden="true">→</span></a>
+      </div>
+    </article>
+
+    <article class="server-card server-card-remote">
+      <div class="server-card-topline">
+        <div class="server-card-kicker"><span class="region-dot remote"></span> CN · remote</div>
+        <span class="badge muted-badge">Not configured</span>
+      </div>
+      <div class="server-card-info">
+        <h2>CN Server</h2>
+        <p class="server-card-summary">Remote control is ready to be connected through SSH.</p>
+        <p class="muted small server-line">Only server status and Start / Stop / Restart will be available.</p>
+      </div>
+      {{ unavailable_control_buttons() }}
+      <div class="server-card-footer">
+        <span class="badge warn">Connection setup pending</span>
+        <span class="muted small">No remote command has been run</span>
+      </div>
+    </article>
+  </div>
+</section>
+
+<section class="dashboard-section workspace-section">
+  <div class="section-heading">
+    <div>
+      <h2>EU management workspace</h2>
+      <p class="muted small">Mods, files, backups and cluster tools remain available on the EU server.</p>
+    </div>
+  </div>
+  <div class="workspace-links">
+    <a class="workspace-link" href="/mods"><strong>Mods</strong><span>Manage installed mods and settings</span></a>
+    <a class="workspace-link" href="/files"><strong>Files</strong><span>Edit server configuration files</span></a>
+    <a class="workspace-link" href="/backups"><strong>Backups</strong><span>Review and restore saved files</span></a>
+    <a class="workspace-link" href="/clusters"><strong>Clusters</strong><span>Switch or create a cluster</span></a>
+  </div>
+</section>
+
+<div class="section-heading dashboard-stats-heading">
+  <div>
+    <h2>EU workspace summary</h2>
+  </div>
+</div>
 <div class="stat-grid">
   <div class="stat">
     <div class="stat-value">{{ mods_total }}</div>
@@ -34,25 +113,6 @@
     <div class="stat-value">{{ backups_count }}</div>
     <div class="stat-label">backups stored</div>
   </div>
-</div>
-
-{% from "_controls.html" import control_buttons, command_results %}
-<div class="panel">
-  <div class="panel-title">
-    <h2>Server</h2>
-    <a class="panel-action" href="/server">Details <span aria-hidden="true">→</span></a>
-  </div>
-  {% if cluster_name %}
-  <p class="server-line">
-    <strong>{{ cluster_name }}</strong>
-    {% if cluster_summary.get("Game mode") %}<span class="muted"> · {{ cluster_summary.get("Game mode") }}</span>{% endif %}
-    {% if cluster_summary.get("Max players") %}<span class="muted"> · max {{ cluster_summary.get("Max players") }} players</span>{% endif %}
-    {% if cluster_summary.get("PvP") %}<span class="muted"> · PvP {{ 'on' if cluster_summary.get("PvP") == 'true' else 'off' }}</span>{% endif %}
-  </p>
-  {% endif %}
-  {% if host_line %}<p class="muted small server-line">{{ host_line }}</p>{% endif %}
-  {{ control_buttons(cfg, "/") }}
-  {{ command_results(last_command) }}
 </div>
 
 <div class="panel">

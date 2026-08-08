@@ -94,7 +94,10 @@
         {% endif %}
         <button type="submit" class="btn danger small" formaction="/mods/remove" formmethod="post"
                 name="workshop_id" value="{{ p.workshop_id }}"
-                onclick="return confirm('Remove {{ p.override_key }} from modoverrides.lua and dedicated_server_mods_setup.lua?');">
+                data-confirm-title="Remove mod?"
+                data-confirm-message="Remove {{ p.override_key }} from modoverrides.lua and the download list?"
+                data-confirm-label="Remove mod"
+                data-confirm-tone="danger">
           Remove
         </button>
       </div>
@@ -170,7 +173,10 @@
         <button type="submit" class="btn danger small" formaction="/mods/delete" formmethod="post"
                 name="workshop_id" value="{{ card.mod.workshop_id }}"
                 title="Delete the local mod folder AND every trace of its configuration"
-              onclick="return confirm('Delete {{ card.mod.override_key }}?\n\nLocal files and configuration will be removed. A backup is created first.');">
+                data-confirm-title="Delete mod?"
+                data-confirm-message="Delete {{ card.mod.override_key }}? Local files and configuration will be removed. A backup is created first."
+                data-confirm-label="Delete mod"
+                data-confirm-tone="danger">
           Delete
         </button>
       </div>

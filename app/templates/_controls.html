@@ -11,7 +11,10 @@
   {% endif %}
   {% if cfg.server.stop_command %}
   <form method="post" action="/server/run" class="inline"
-        onsubmit="return confirm('Stop the DST server now? Connected players will be disconnected.');">
+        data-confirm-title="Stop server?"
+        data-confirm-message="The DST server will stop and connected players will be disconnected."
+        data-confirm-label="Stop server"
+        data-confirm-tone="danger">
     <input type="hidden" name="action" value="stop">
     <input type="hidden" name="next" value="{{ next_url }}">
     <button type="submit" class="btn danger">Stop</button>
@@ -19,7 +22,10 @@
   {% endif %}
   {% if cfg.server.restart_command %}
   <form method="post" action="/server/run" class="inline"
-        onsubmit="return confirm('Restart the DST server now?');">
+        data-confirm-title="Restart server?"
+        data-confirm-message="The DST server will briefly go offline while it restarts."
+        data-confirm-label="Restart server"
+        data-confirm-tone="danger">
     <input type="hidden" name="action" value="restart">
     <input type="hidden" name="next" value="{{ next_url }}">
     <button type="submit" class="btn danger">Restart</button>
@@ -38,9 +44,24 @@
 </div>
 {% endmacro %}
 
-{% macro command_results(last_command) %}
+{% macro command_results(last_command, compact_status=false) %}
 {% if last_command %}
 {% set result = last_command.result %}
+{% if compact_status and last_command.action == "status" %}
+{% set state = last_command.status_state or "unknown" %}
+<div class="cmd-result status-compact">
+  <h3>Last command: {{ last_command.action }} — {{ result.ran_at.strftime("%Y-%m-%d %H:%M:%S") if result.ran_at else "" }}
+    {% if result.ok %}<span class="badge ok">exit {{ result.exit_code }}</span>
+    {% else %}<span class="badge err">{{ result.error or ("exit " ~ result.exit_code) }}</span>{% endif %}
+    {% if state == "active" %}<span class="badge ok">active</span>
+    {% elif state == "inactive" %}<span class="badge err">inactive</span>
+    {% elif state == "mixed" %}<span class="badge warn">mixed</span>
+    {% else %}<span class="badge muted-badge">unknown</span>{% endif %}
+  </h3>
+  <p class="muted"><code>{{ result.command }}</code></p>
+  <h4>stdout</h4><pre>{{ state }}</pre>
+</div>
+{% else %}
 <div class="cmd-result">
   <h3>Last command: {{ last_command.action }} — {{ result.ran_at.strftime("%Y-%m-%d %H:%M:%S") if result.ran_at else "" }}
     {% if result.ok %}<span class="badge ok">exit {{ result.exit_code }}</span>
@@ -51,4 +72,16 @@
   {% if result.stderr %}<h4>stderr</h4><pre>{{ result.stderr }}</pre>{% endif %}
 </div>
 {% endif %}
+{% endif %}
+{% endmacro %}
+
+{# Layout placeholder for a future remote target. It is deliberately visual
+   only until the target's connection and commands are configured. #}
+{% macro unavailable_control_buttons() %}
+<div class="control-buttons control-buttons-disabled" aria-label="Remote server controls unavailable">
+  <button type="button" class="btn success" disabled>Start</button>
+  <button type="button" class="btn danger" disabled>Stop</button>
+  <button type="button" class="btn danger" disabled>Restart</button>
+  <button type="button" class="btn" disabled>Check status</button>
+</div>
 {% endmacro %}

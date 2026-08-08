@@ -1156,6 +1156,23 @@ def create_app() -> FastAPI:
             "status": cfg.server.status_command,
         }.get(action, "")
 
+    def _summarize_status(result: Any) -> str:
+        """Reduce a status command's output to a compact dashboard state."""
+        output = "\n".join(
+            part for part in (getattr(result, "stdout", ""), getattr(result, "stderr", "")) if part
+        ).lower()
+        inactive = bool(re.search(r"\b(inactive|failed|dead|stopped|offline)\b", output))
+        active = bool(re.search(r"\b(active|running|online|started)\b", output))
+        if active and inactive:
+            return "mixed"
+        if active:
+            return "active"
+        if inactive:
+            return "inactive"
+        if getattr(result, "ok", False):
+            return "active"
+        return "unknown"
+
     def _shard_log_path(shard: str) -> Path:
         return cfg.dst.shard_dir(shard) / "server_log.txt"
 
@@ -1214,8 +1231,15 @@ def create_app() -> FastAPI:
         if not command.strip():
             return _redirect_flash(next_url, f"no {action}_command configured", "error")
         result = run_command(command)
-        app.state.last_command = {"action": action, "result": result}
+        last_command: dict[str, Any] = {"action": action, "result": result}
+        if action == "status":
+            last_command["status_state"] = _summarize_status(result)
+        app.state.last_command = last_command
         logger.info("%s command finished: ok=%s exit=%s", action, result.ok, result.exit_code)
+        if action == "status" and next_url == "/":
+            state = str(last_command.get("status_state") or "unknown")
+            level = "success" if state == "active" else "error"
+            return _redirect_flash(next_url, f"Server status: {state}.", level)
         if result.ok:
             return _redirect_flash(next_url, f"{action.capitalize()} command executed — output below.")
         return _redirect_flash(next_url, f"{action.capitalize()} command failed — output below.", "error")

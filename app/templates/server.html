@@ -1,40 +1,82 @@
 {% extends "base.html" %}
-{% block title %}Server · DST Mod Manager{% endblock %}
+{% block title %}Servers · DST Mod Manager{% endblock %}
 {% block content %}
-<h1>Server{% if cluster.cluster_name %} — {{ cluster.cluster_name }}{% endif %}</h1>
+<h1>Server control</h1>
+
+<div class="server-target-tabs" role="tablist" aria-label="Server targets">
+  <a class="server-target-tab active" href="/server" role="tab" aria-selected="true">
+    <span><span class="region-dot"></span> EU Server</span>
+    <span class="badge info">Full management</span>
+  </a>
+  <span class="server-target-tab disabled" role="tab" aria-disabled="true">
+    <span><span class="region-dot remote"></span> CN Server</span>
+    <span class="badge muted-badge">Coming next</span>
+  </span>
+</div>
 
 {% from "_controls.html" import control_buttons, command_results %}
-<div class="panel">
-  <h2>Control</h2>
-  {{ control_buttons(cfg, "/server") }}
+<div class="server-hero panel">
+  <div class="server-hero-main">
+    <div class="server-hero-copy">
+      <div class="server-card-kicker"><span class="region-dot"></span> EU · local control</div>
+      <div class="server-hero-info">
+        <h2>EU Server{% if cluster.cluster_name %} <span class="muted">— {{ cluster.cluster_name }}</span>{% endif %}</h2>
+        {% set cluster_values = dict(cluster.cluster.summary) %}
+        {% if cluster.cluster.summary %}
+        <p class="server-card-summary">
+          {% if cluster_values.get("Game mode") %}{{ cluster_values.get("Game mode") }}{% endif %}
+          {% if cluster_values.get("Max players") %}<span class="muted"> · max {{ cluster_values.get("Max players") }} players</span>{% endif %}
+          {% if cluster_values.get("PvP") %}<span class="muted"> · PvP {{ 'on' if cluster_values.get("PvP") == 'true' else 'off' }}</span>{% endif %}
+        </p>
+        {% endif %}
+        {% if system.hostname %}<p class="muted small">{{ system.hostname }}{% if system.now %} · checked {{ system.now }}{% endif %}</p>{% endif %}
+      </div>
+    </div>
+    <div class="server-hero-actions">
+      <h2>Control</h2>
+      {{ control_buttons(cfg, "/server") }}
+    </div>
+  </div>
   {{ command_results(last_command) }}
 </div>
 
-<div class="panel">
+<div class="server-detail-grid">
+<div class="panel logs-panel">
   <h2>Logs</h2>
-  <table class="list-table">
-    <tr><th>Shard</th><th>Log file</th><th>Size</th><th>Modified</th><th></th></tr>
-    {% for entry in logs %}
-    <tr>
-      <td>{{ entry.shard }}</td>
-      <td><code title="{{ entry.path }}">{{ entry.path.name }}</code>
-        {% if not entry.exists %}<span class="badge muted-badge">missing</span>{% endif %}</td>
-      <td>{{ entry.size or "—" }}</td>
-      <td>{{ entry.mtime or "—" }}</td>
-      <td class="nowrap">{% if entry.exists %}<a class="btn small" href="/server/logs/{{ entry.shard }}">view log</a>{% endif %}</td>
-    </tr>
-    {% endfor %}
-  </table>
+  <div class="logs-card-content">
+    <table class="list-table">
+      <tr><th>Shard</th><th>Log file</th><th>Size</th><th>Modified</th><th></th></tr>
+      {% for entry in logs %}
+      <tr>
+        <td>{{ entry.shard }}</td>
+        <td><code title="{{ entry.path }}">{{ entry.path.name }}</code>
+          {% if not entry.exists %}<span class="badge muted-badge">missing</span>{% endif %}</td>
+        <td>{{ entry.size or "—" }}</td>
+        <td>{{ entry.mtime or "—" }}</td>
+        <td class="nowrap">{% if entry.exists %}<a class="btn small" href="/server/logs/{{ entry.shard }}">view log</a>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  <div class="logs-card-note">
+    <span class="badge info">Read-only</span>
+    <span>Open a shard log to inspect its latest server output.</span>
+  </div>
 </div>
 
-<div class="panel">
+<div class="panel system-status-panel">
   <h2>System status <span class="muted small">— {{ system.hostname }} · {{ system.now }}</span></h2>
   <table class="kv-table">
     {% if system.cpu_count %}<tr><th>CPU cores</th><td>{{ system.cpu_count }}
-      {% if system.load %} · load average <code>{{ system.load }}</code>
+      {% if system.load %} · load <code>{{ system.load }}</code>
       <span class="help" data-tip="Average number of processes using or waiting for the CPU over the last 1 / 5 / 15 minutes. The CPU is saturated when this exceeds the core count.">?</span>{% endif %}</td></tr>{% endif %}
-    {% if system.uptime %}<tr><th>Host uptime</th><td>{{ system.uptime }}</td></tr>{% endif %}
   </table>
+  {% if system.uptime %}
+  <div class="system-uptime-row">
+    <span class="system-uptime-label">Host uptime</span>
+    <span>{{ system.uptime }}</span>
+  </div>
+  {% endif %}
   {% macro meter_row(m) %}
   <div class="meter-row">
     <div class="meter-label">{{ m.label }}</div>
@@ -51,9 +93,13 @@
   <p class="muted">System metrics are unavailable on this host.</p>
   {% endif %}
 </div>
+</div>
 
 <div class="panel">
-  <h2>Cluster configuration</h2>
+  <div class="panel-title">
+    <h2>Cluster configuration</h2>
+    <span class="badge info">EU server</span>
+  </div>
   {% if not cluster.cluster.exists %}
   <p class="muted">cluster.ini not found: <code>{{ cluster.cluster.path }}</code></p>
   {% else %}
@@ -80,32 +126,4 @@
   {% endif %}
 </div>
 
-{% for shard in cluster.shards %}
-<div class="panel">
-  <h2>{{ shard.title }}</h2>
-  {% if not shard.exists %}
-  <p class="muted">server.ini not found: <code>{{ shard.path }}</code></p>
-  {% else %}
-  {% if shard.error %}<p class="error-text">{{ shard.error }}</p>{% endif %}
-  {% if shard.summary %}
-  <table class="kv-table">
-    {% for label, value in shard.summary %}
-    <tr><th>{{ label }}</th><td>{{ value }}</td></tr>
-    {% endfor %}
-  </table>
-  {% endif %}
-  {% if shard.raw_masked %}
-  <details class="config-details" data-raw-url="/server/config/raw/{{ shard.title }}">
-    <summary class="config-summary">
-      <span>View {{ shard.title }}</span>
-      <button class="secret-toggle" type="button" aria-label="Show sensitive values" aria-pressed="false" title="Show sensitive values">
-        <svg class="eye-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-5.5 9.5-5.5 9.5 5.5 9.5 5.5-3.5 5.5-9.5 5.5S2.5 12 2.5 12Z"></path><circle cx="12" cy="12" r="2.5"></circle></svg>
-      </button>
-    </summary>
-    <pre class="wrap masked-config">{{ shard.raw_masked }}</pre>
-  </details>
-  {% endif %}
-  {% endif %}
-</div>
-{% endfor %}
 {% endblock %}

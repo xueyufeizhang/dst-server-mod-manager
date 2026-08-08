@@ -21,13 +21,19 @@
   {% endif %}
   <div class="actions">
     <form class="inline" method="post" action="/backups/restore"
-          onsubmit="return confirm('Restore all {{ session.files|length }} file(s) from backup {{ session.session_id }}?\nThe current files will be backed up first.');">
+          data-confirm-title="Restore backup?"
+          data-confirm-message="Restore all {{ session.files|length }} file(s) from backup {{ session.session_id }}. The current files will be backed up first."
+          data-confirm-label="Restore"
+          data-confirm-tone="primary">
       <input type="hidden" name="session_id" value="{{ session.session_id }}">
       {% for f in session.files %}<input type="hidden" name="keys" value="{{ f.key }}">{% endfor %}
       <button type="submit" class="btn primary">Restore</button>
     </form>
     <form class="inline" method="post" action="/backups/delete"
-          onsubmit="return confirm('Permanently delete backup {{ session.session_id }}? This cannot be undone.');">
+          data-confirm-title="Delete backup?"
+          data-confirm-message="Permanently delete backup {{ session.session_id }}? This cannot be undone."
+          data-confirm-label="Delete backup"
+          data-confirm-tone="danger">
       <input type="hidden" name="session_ids" value="{{ session.session_id }}">
       <button type="submit" class="btn danger">Delete this backup</button>
     </form>
@@ -41,7 +47,10 @@
   <div class="diff-head">
     <h3>{{ d.key }} <span class="muted small">compared with {{ d.after_label }}</span></h3>
     <form class="inline" method="post" action="/backups/restore"
-          onsubmit="return confirm('Restore only {{ d.key }} from backup {{ session.session_id }}?\nThe current file will be backed up first.');">
+          data-confirm-title="Restore file?"
+          data-confirm-message="Restore {{ d.key }} from backup {{ session.session_id }}. The current file will be backed up first."
+          data-confirm-label="Restore file"
+          data-confirm-tone="primary">
       <input type="hidden" name="session_id" value="{{ session.session_id }}">
       <input type="hidden" name="keys" value="{{ d.key }}">
     <button type="submit" class="btn small">Restore</button>
