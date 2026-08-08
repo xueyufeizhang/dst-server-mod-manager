@@ -66,7 +66,7 @@
     {% elif state == "mixed" %}<span class="badge warn">mixed</span>
     {% else %}<span class="badge muted-badge">unknown</span>{% endif %}
   </h3>
-  <p class="muted"><code>{{ result.command }}</code></p>
+  {% if not compact_status %}<p class="muted"><code>{{ result.command }}</code></p>{% endif %}
   <h4>stdout</h4><pre>{{ state }}</pre>
 </div>
 {% else %}
@@ -75,7 +75,7 @@
     {% if result.ok %}<span class="badge ok">exit {{ result.exit_code }}</span>
     {% else %}<span class="badge err">{{ result.error or ("exit " ~ result.exit_code) }}</span>{% endif %}
   </h3>
-  <p class="muted"><code>{{ result.command }}</code></p>
+  {% if not compact_status %}<p class="muted"><code>{{ result.command }}</code></p>{% endif %}
   {% if result.stdout %}<h4>stdout</h4><pre>{{ result.stdout }}</pre>{% endif %}
   {% if result.stderr %}<h4>stderr</h4><pre>{{ result.stderr }}</pre>{% endif %}
 </div>
