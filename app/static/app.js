@@ -96,6 +96,25 @@ var DST = {
   }, true);
 })();
 
+// Cluster overflow menus close when the user clicks elsewhere or presses
+// Escape. Opening one menu also closes any other open cluster menu.
+(function () {
+  function closeMenus(except) {
+    document.querySelectorAll("details.cluster-more[open]").forEach(function (menu) {
+      if (menu !== except) menu.open = false;
+    });
+  }
+
+  document.addEventListener("click", function (event) {
+    var menu = event.target.closest ? event.target.closest("details.cluster-more") : null;
+    closeMenus(menu);
+  });
+
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape") closeMenus(null);
+  });
+})();
+
 function dstAnyDirty() {
   return DST.dirtyCheckers.some(function (fn) { return fn(); });
 }
